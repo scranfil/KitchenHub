@@ -188,10 +188,6 @@ body {
   grid-template-rows: auto auto minmax(0, 1fr);
 }
 
-.stage.is-detail .news {
-  display: none;
-}
-
 .hourly,
 .daily,
 .news {
@@ -260,7 +256,7 @@ body {
 }
 
 .news-hit,
-.news-back {
+.news-close {
   font-family: inherit;
   color: inherit;
   cursor: pointer;
@@ -324,31 +320,83 @@ body {
   background: var(--fg);
 }
 
-.news-detail {
-  min-height: 0;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
+.news-modal {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3vh 3vw;
 }
 
-.news-detail[hidden] {
+.news-modal[hidden] {
   display: none;
 }
 
-.news-back {
-  background: transparent;
+.news-modal-backdrop {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.news-modal-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 980px;
+  max-height: 88vh;
+  background: var(--bg);
+  color: var(--fg);
   border: 1px solid var(--line);
-  font-size: 2.4vh;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 1vh 1.6vw;
-  margin: 0 0 1.4vh;
+  box-shadow: 0 1.2vh 4vh rgba(0, 0, 0, 0.35);
+}
+
+.news-modal-scroll {
+  max-height: 88vh;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 2.2vh 2vw 3vh;
+}
+
+.news-close {
+  position: absolute;
+  top: 1.2vh;
+  right: 1.2vw;
+  z-index: 2;
+  width: 6vh;
+  height: 6vh;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 4vh;
+  font-weight: 500;
+  line-height: 1;
+  padding: 0;
+}
+
+.news-photo {
+  display: block;
+  width: 100%;
+  max-height: 46vh;
+  object-fit: contain;
+  background: var(--panel);
+  margin: 0 0 1.6vh;
+}
+
+.news-photo[hidden] {
+  display: none;
 }
 
 .news-detail-title {
-  margin: 0;
-  font-size: 4.4vh;
+  margin: 0 7vh 0 0;
+  font-size: 4.2vh;
   font-weight: 650;
   line-height: 1.15;
 }

@@ -9,7 +9,9 @@ const RSS = [
   '<link>https://example.com/a</link>',
   '<pubDate>Wed, 21 Oct 2026 15:00:00 GMT</pubDate>',
   '<description>Short alpha summary.</description>',
-  '<content:encoded><![CDATA[<p>Alpha has a longer explanation.</p><p>Second paragraph.</p>]]></content:encoded>',
+  '<media:content url="https://cdn.example.com/alpha.jpg" type="image/jpeg" />',
+  '<media:content url="https://cdn.example.com/clip.m3u8" type="application/x-mpegURL" />',
+  '<content:encoded><![CDATA[<p>Alpha has a longer explanation.</p><p>Second paragraph.</p><img src="https://cdn.example.com/alpha-wide.png" /><img src="https://media.npr.org/include/images/tracking/npr-rss-pixel.png" />]]></content:encoded>',
   '</item>',
   '<item>',
   '<title><![CDATA[Gamma story]]></title>',
@@ -29,6 +31,8 @@ const READER = [
   'Title: Example',
   '',
   '### [City council sets the levy](https://example.com/levy)',
+  '',
+  '![City hall](https://cdn.example.com/levy.jpg)',
   '',
   'The council voted Tuesday to keep the same rate.',
   '',
@@ -51,6 +55,11 @@ test('parses RSS titles, summaries, and entities', function () {
   assert.match(items[0].summary, /Second paragraph/);
   assert.equal(items[1].title, 'Gamma story');
   assert.equal(items[1].summary, 'Gamma summary only.');
+  assert.equal(items[0].image, 'https://cdn.example.com/alpha.jpg');
+  assert.deepEqual(items[0].images, [
+    'https://cdn.example.com/alpha.jpg',
+    'https://cdn.example.com/alpha-wide.png'
+  ]);
 });
 
 test('parses reader markdown headlines and dates', function () {
@@ -58,6 +67,7 @@ test('parses reader markdown headlines and dates', function () {
   assert.equal(items.length, 2);
   assert.equal(items[0].title, 'City council sets the levy');
   assert.equal(items[0].summary, 'The council voted Tuesday to keep the same rate.');
+  assert.equal(items[0].image, 'https://cdn.example.com/levy.jpg');
   assert.equal(items[0].published, 'Wed, 21 Oct 2026 15:49:00 GMT');
   assert.equal(items[1].source, 'WTHR');
 });
