@@ -210,6 +210,7 @@
     }
     var pixelThreshold = Math.round((100 - sens) * 0.55) + 10;
     var needed = Math.max(1, Math.round(prev.length * 0.015));
+    var sum = 0;
     var hits = 0;
     var i;
     var delta;
@@ -218,7 +219,16 @@
       if (delta < 0) {
         delta = -delta;
       }
-      if (delta >= pixelThreshold) {
+      sum += delta;
+    }
+    // A backlight or exposure change moves the whole frame. A hand does not.
+    var mean = sum / prev.length;
+    for (i = 0; i < prev.length; i++) {
+      delta = prev[i] - next[i];
+      if (delta < 0) {
+        delta = -delta;
+      }
+      if (delta - mean >= pixelThreshold) {
         hits++;
         if (hits >= needed) {
           return true;
@@ -241,6 +251,9 @@
     var util = window.KH.util;
     var controller = null;
     var started = false;
+    var frameGeneration = 0;
+    var veilHoldUntil = 0;
+    var lastVeil = null;
 
     function presenceCfg() {
       return util.cfg.presence || {};
@@ -321,6 +334,7 @@
       canvas.height = height;
       var ctx = canvas.getContext('2d');
       var prev = null;
+      var seenGeneration = frameGeneration;
 
       function sample() {
         var rate = Number(presenceCfg().frameRate);
@@ -340,7 +354,11 @@
           for (i = 0, p = 0; i < gray.length; i++, p += 4) {
             gray[i] = (data[p] * 54 + data[p + 1] * 183 + data[p + 2] * 19) >> 8;
           }
-          if (motionHit(prev, gray, presenceCfg().sensitivity)) {
+          if (seenGeneration !== frameGeneration) {
+            prev = null;
+            seenGeneration = frameGeneration;
+          }
+          if (Date.now() >= veilHoldUntil && motionHit(prev, gray, presenceCfg().sensitivity)) {
             onMotion();
           }
           prev = gray;
@@ -361,6 +379,26 @@
       }).catch(function (err) {
         stopStream(video.srcObject);
         console.error('[presence] camera', err);
+      });
+    }
+
+    function keepAwake() {
+      if (!navigator.wakeLock || typeof navigator.wakeLock.request !== 'function') {
+        return;
+      }
+      function request() {
+        if (document.visibilityState && document.visibilityState !== 'visible') {
+          return;
+        }
+        navigator.wakeLock.request('screen').catch(function (err) {
+          console.error('[presence] wake lock', err);
+        });
+      }
+      request();
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+          request();
+        }
       });
     }
 
@@ -412,10 +450,37 @@
       }
     }
 
+    function panelCap() {
+      var cfg = presenceCfg();
+      var cap = clampLevel(cfg.bright == null ? DEFAULT_BRIGHT : cfg.bright);
+      if (cap < 1) {
+        return 1;
+      }
+      return cap;
+    }
+
+    function veilFor(level) {
+      var opacity = 1 - (clampLevel(level) / panelCap());
+      if (opacity < 0) {
+        opacity = 0;
+      }
+      if (opacity > 0.97) {
+        opacity = 0.97;
+      }
+      return String(Math.round(opacity * 1000) / 1000);
+    }
+
     function apply(level, mode) {
       document.body.classList.toggle('presence-dim', mode === 'dim');
       document.body.classList.toggle('presence-bright', mode !== 'dim');
       var f = hardware();
+      var veil = f ? '0' : veilFor(level);
+      if (veil !== lastVeil) {
+        lastVeil = veil;
+        frameGeneration += 1;
+        veilHoldUntil = Date.now() + 1500;
+      }
+      document.documentElement.style.setProperty('--presence-veil', veil);
       if (!f) {
         document.body.classList.remove('presence-device');
         return;
@@ -447,6 +512,7 @@
       started = true;
       if (disabled()) {
         document.body.classList.remove('presence-dim', 'presence-bright', 'presence-device');
+        document.documentElement.style.setProperty('--presence-veil', '0');
         return;
       }
 
@@ -476,7 +542,11 @@
       });
       controller.start();
       if (!hardware()) {
+        keepAwake();
         startBrowserMotion(function () {
+          if (Date.now() < veilHoldUntil) {
+            return;
+          }
           if (controller) {
             controller.activity();
           }

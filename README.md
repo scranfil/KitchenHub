@@ -33,7 +33,7 @@ Open `http://localhost:8080`.
 
 ### Presence
 
-On the Lenovo tablet this needs **Fully Kiosk PLUS** and, once, **Advanced Web Settings → Enable JavaScript Interface**. The page then turns on the front camera, sets the backlight from `config.presence`, and dims it after `idleSeconds` with no motion. A tap or a weather alert brings it back up. From `config.night.start` to `config.night.end` it uses the lower `presence.night` levels. Desktop Chrome has no backlight control, so the same timer darkens the page with an overlay.
+On the Lenovo tablet, Fully Kiosk PLUS (Advanced Web Settings → Enable JavaScript Interface) lets the page set the backlight from `config.presence`. In Chrome the page cannot move the backlight, so pin that backlight to the day `presence.bright` value, turn auto-brightness off, and the page darkens the panel with a veil. Either way the front camera is on, the page dims after `idleSeconds` with no motion, and a wave, a tap, or a weather alert brings it back up. From `config.night.start` to `config.night.end` it uses the lower `presence.night` levels. A fully off panel suspends the camera, so the screen stays on.
 
 If the camera never reacts, set Fully → Motion Detection → **Camera API** to **Legacy**. Leave Fully’s screensaver timer and screen-off timer at 0. The page owns dimming, and a fully off panel on this tablet can suspend the camera.
 

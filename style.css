@@ -470,8 +470,9 @@ body {
   z-index: 0;
 }
 
-/* Desktop stand-in for the tablet backlight. Fully sets the real brightness. */
-body.presence-dim:not(.presence-device)::after {
+/* Chrome cannot set the backlight. The tablet stays at the day bright level
+   and this veil darkens it to the active presence level. Fully sets the real brightness. */
+body:not(.presence-device)::after {
   content: "";
   position: fixed;
   top: 0;
@@ -479,9 +480,10 @@ body.presence-dim:not(.presence-device)::after {
   bottom: 0;
   left: 0;
   background: #000;
-  opacity: 0.78;
+  opacity: var(--presence-veil, 0);
   pointer-events: none;
   z-index: 40;
+  transition: opacity 0.45s linear;
 }
 
 @media (max-width: 1100px) {

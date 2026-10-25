@@ -77,6 +77,24 @@ test('camera motion ignores a still frame and catches a wave', function () {
   assert.equal(presence.motionHit(null, wave, 92), false);
 });
 
+test('camera motion ignores a whole-frame brightness change', function () {
+  var still = [];
+  var shifted = [];
+  var wave = [];
+  var i;
+  for (i = 0; i < 64 * 48; i++) {
+    still.push(40);
+    shifted.push(90);
+    wave.push(40);
+  }
+  for (i = 0; i < 20 * 16; i++) {
+    wave[i] = 140;
+  }
+  assert.equal(presence.motionHit(still, still, 92), false);
+  assert.equal(presence.motionHit(still, shifted, 92), false);
+  assert.equal(presence.motionHit(still, wave, 92), true);
+});
+
 test('dims after the idle gap and brightens on motion', function () {
   var h = harness();
   h.controller.start();
