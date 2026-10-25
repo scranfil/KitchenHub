@@ -75,13 +75,37 @@
     return text;
   }
 
-  function stripHtml(value) {
-    var text = unwrapCdata(value);
+  function stripTags(text) {
+    text = text.replace(/<!--[\s\S]*?-->/g, ' ');
     text = text.replace(/<script[\s\S]*?<\/script>/gi, ' ');
     text = text.replace(/<style[\s\S]*?<\/style>/gi, ' ');
     text = text.replace(/<br\s*\/?>/gi, '\n');
     text = text.replace(/<\/p>/gi, '\n\n');
+    text = text.replace(/<\/(div|h[1-6]|li|tr|blockquote)>/gi, '\n');
     text = text.replace(/<[^>]+>/g, '');
+    return text;
+  }
+
+  function stripHtml(value) {
+    var text = unwrapCdata(value);
+    var pass;
+    // Feeds often store markup as &lt;p&gt;…&lt;/p&gt;, sometimes twice.
+    // Decode first or the tag strip never sees a real tag.
+    for (pass = 0; pass < 4; pass++) {
+      var decoded = decodeEntities(text);
+      var tagged = /<[a-z!/][^>]*>/i.test(decoded);
+      if (decoded === text && !tagged) {
+        break;
+      }
+      text = decoded;
+      if (tagged) {
+        text = stripTags(text);
+        continue;
+      }
+      if (!/&(?:amp;)?lt;|&#0*60;|&#x0*3c;/i.test(text)) {
+        break;
+      }
+    }
     text = decodeEntities(text);
     text = text.replace(/\u00a0/g, ' ');
     text = text.replace(/\(Image credit:[^)]*\)/gi, '');
@@ -241,7 +265,7 @@
           link: link,
           published: published,
           source: sourceName || '',
-          summary: paras.join('\n\n'),
+          summary: stripHtml(paras.join('\n\n')),
           image: images[0] || '',
           images: images.slice(0, 3)
         });
@@ -322,7 +346,7 @@
   }
 
   function summaryParagraphs(item) {
-    var parts = String(item && item.summary || '').split(/\n+/);
+    var parts = stripHtml(item && item.summary || '').split(/\n+/);
     var titleKey = normTitle(item && item.title);
     var out = [];
     var i;
@@ -440,6 +464,10 @@
         if (detailOpen || !items.length) {
           return;
         }
+        if (swipe.active) {
+          armRotate();
+          return;
+        }
         index = stepIndex(index, items.length, 1);
         renderHeadline();
         armRotate();
@@ -447,6 +475,11 @@
     }
 
     function renderHeadline() {
+      if (swipe.active) {
+        headlineDirty = true;
+        return;
+      }
+      headlineDirty = false;
       util.safeRender('news', function () {
         var root = util.$('news');
         if (!root) {
@@ -460,9 +493,10 @@
           return;
         }
         var item = items[index] || items[0];
+        var title = oneLine(item.title);
         var hit = el('button', 'news-hit');
         hit.type = 'button';
-        hit.appendChild(el('div', 'news-headline', item.title));
+        hit.appendChild(el('div', 'news-headline', title));
         var meta = item.source || 'News';
         var age = ageLabel(item.published);
         if (age) {
@@ -493,7 +527,7 @@
       var card = el('div', 'news-modal-card');
       card.setAttribute('role', 'dialog');
       card.setAttribute('aria-modal', 'true');
-      card.setAttribute('aria-label', item.title);
+      card.setAttribute('aria-label', oneLine(item.title));
       var closeBtn = el('button', 'news-close', '\u00d7');
       closeBtn.type = 'button';
       closeBtn.setAttribute('aria-label', 'Close');
@@ -518,7 +552,7 @@
         });
         scroller.appendChild(photo);
       }
-      scroller.appendChild(el('h2', 'news-detail-title', item.title));
+      scroller.appendChild(el('h2', 'news-detail-title', oneLine(item.title)));
       var meta = item.source || 'News';
       var age = ageLabel(item.published);
       if (age) {
@@ -559,6 +593,9 @@
       if (panel) {
         panel.hidden = true;
         util.emptyEl(panel);
+      }
+      if (headlineDirty) {
+        renderHeadline();
       }
       armRotate();
     }
@@ -727,6 +764,9 @@
     }
 
     var swipe = { x: 0, y: 0, active: false, suppress: false };
+    var headlineDirty = false;
+    var pressedKey = '';
+    var dropBackdropClick = false;
 
     function step(dir) {
       if (items.length < 2) {
@@ -741,6 +781,23 @@
       }
     }
 
+    function rememberPressed() {
+      pressedKey = items[index] ? normTitle(items[index].title) : '';
+    }
+
+    function selectPressed() {
+      if (!pressedKey) {
+        return;
+      }
+      var i;
+      for (i = 0; i < items.length; i++) {
+        if (normTitle(items[i].title) === pressedKey) {
+          index = i;
+          return;
+        }
+      }
+    }
+
     function onPointerDown(ev) {
       if (!items.length) {
         return;
@@ -751,7 +808,8 @@
       swipe.active = true;
       swipe.x = ev.clientX;
       swipe.y = ev.clientY;
-      if (ev.currentTarget.setPointerCapture) {
+      rememberPressed();
+      if (ev.currentTarget.id === 'news' && ev.currentTarget.setPointerCapture) {
         try {
           ev.currentTarget.setPointerCapture(ev.pointerId);
         } catch (err) {
@@ -760,24 +818,49 @@
       }
     }
 
+    function releasePointer() {
+      swipe.active = false;
+      if (headlineDirty && !detailOpen) {
+        renderHeadline();
+      }
+    }
+
     function onPointerUp(ev) {
       if (!swipe.active) {
         return;
       }
-      swipe.active = false;
       var dx = ev.clientX - swipe.x;
       var dy = ev.clientY - swipe.y;
-      if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy)) {
+      var swiped = Math.abs(dx) >= SWIPE_MIN_PX && Math.abs(dx) > Math.abs(dy);
+      swipe.active = false;
+      if (swiped) {
+        // The click that follows a swipe must not also open the story.
+        // Clear it on a timer so a missed click cannot swallow the next tap.
+        swipe.suppress = true;
+        setTimeout(function () {
+          swipe.suppress = false;
+        }, 450);
+        ev.preventDefault();
+        ev.stopPropagation();
+        step(dx < 0 ? 1 : -1);
+        pressedKey = '';
         return;
       }
-      swipe.suppress = true;
-      ev.preventDefault();
-      ev.stopPropagation();
-      step(dx < 0 ? 1 : -1);
+      if (!detailOpen && ev.currentTarget && ev.currentTarget.id === 'news') {
+        selectPressed();
+        dropBackdropClick = true;
+        openDetail();
+        setTimeout(function () {
+          dropBackdropClick = false;
+        }, 450);
+      }
+      pressedKey = '';
+      releasePointer();
     }
 
     function onPointerCancel() {
-      swipe.active = false;
+      pressedKey = '';
+      releasePointer();
     }
 
     function onNewsClick(ev) {
@@ -787,15 +870,11 @@
         ev.stopPropagation();
         return;
       }
-      var node = ev.target;
-      while (node && node.id !== 'news') {
-        if (node.classList && node.classList.contains('news-hit')) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          openDetail();
-          return;
-        }
-        node = node.parentNode;
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (!detailOpen) {
+        selectPressed();
+        openDetail();
       }
     }
 
@@ -819,9 +898,13 @@
         }
         node = node.parentNode;
       }
-      if (!swipe.suppress) {
-        closeDetail();
+      if (dropBackdropClick) {
+        dropBackdropClick = false;
+        ev.preventDefault();
+        ev.stopPropagation();
+        return;
       }
+      closeDetail();
     }
 
     function renderCache() {

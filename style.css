@@ -265,7 +265,7 @@ body {
 }
 
 .news-hit {
-  touch-action: pan-y;
+  touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
   flex: 1;

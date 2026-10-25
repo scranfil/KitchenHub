@@ -112,3 +112,26 @@ test('summary paragraphs skip a repeated title', function () {
   });
   assert.deepEqual(paras, ['The rest of the summary.']);
 });
+
+test('escaped feed markup is shown as text', function () {
+  assert.equal(
+    news.stripHtml('&lt;p&gt;Hello &amp;amp; welcome&lt;/p&gt;&lt;p&gt;See the &lt;a href="https://example.com"&gt;story&lt;/a&gt;.&lt;/p&gt;'),
+    'Hello & welcome\n\nSee the story.'
+  );
+  assert.equal(news.stripHtml('&amp;lt;p&amp;gt;Hi&amp;lt;/p&amp;gt;'), 'Hi');
+  assert.equal(news.stripHtml('Plain &amp; simple'), 'Plain & simple');
+  var xml = [
+    '<rss><channel><item>',
+    '<title>Tagged story</title>',
+    '<description>&lt;p&gt;Hello &amp;amp; welcome&lt;/p&gt;&lt;p&gt;Second&lt;/p&gt;</description>',
+    '</item></channel></rss>'
+  ].join('');
+  var item = news.parseRss(xml, 'Fox')[0];
+  assert.equal(item.summary.indexOf('<'), -1);
+  assert.deepEqual(news.summaryParagraphs(item), ['Hello & welcome', 'Second']);
+  var cached = news.summaryParagraphs({
+    title: 'Tagged story',
+    summary: '<p>Hello</p>\n\n<p>Second</p>'
+  });
+  assert.deepEqual(cached, ['Hello', 'Second']);
+});
