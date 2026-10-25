@@ -1,0 +1,86 @@
+{
+  "properties": {
+    "periods": [
+      {
+        "name": "Today",
+        "startTime": "2026-10-21T11:00:00-04:00",
+        "isDaytime": true,
+        "temperature": 70,
+        "probabilityOfPrecipitation": { "value": 0 },
+        "shortForecast": "Sunny"
+      },
+      {
+        "name": "Tonight",
+        "startTime": "2026-10-21T18:00:00-04:00",
+        "isDaytime": false,
+        "temperature": 44,
+        "probabilityOfPrecipitation": { "value": 0 },
+        "shortForecast": "Mostly Clear then Patchy Fog"
+      },
+      {
+        "name": "Thursday",
+        "startTime": "2026-10-22T06:00:00-04:00",
+        "isDaytime": true,
+        "temperature": 71,
+        "probabilityOfPrecipitation": { "value": 0 },
+        "shortForecast": "Patchy Fog then Sunny"
+      },
+      {
+        "name": "Thursday Night",
+        "startTime": "2026-10-22T18:00:00-04:00",
+        "isDaytime": false,
+        "temperature": 45,
+        "probabilityOfPrecipitation": { "value": 0 },
+        "shortForecast": "Mostly Clear"
+      },
+      {
+        "name": "Friday",
+        "startTime": "2026-10-23T06:00:00-04:00",
+        "isDaytime": true,
+        "temperature": 71,
+        "probabilityOfPrecipitation": { "value": 5 },
+        "shortForecast": "Sunny"
+      },
+      {
+        "name": "Friday Night",
+        "startTime": "2026-10-23T18:00:00-04:00",
+        "isDaytime": false,
+        "temperature": 46,
+        "probabilityOfPrecipitation": { "value": 10 },
+        "shortForecast": "Mostly Clear"
+      },
+      {
+        "name": "Saturday",
+        "startTime": "2026-10-24T06:00:00-04:00",
+        "isDaytime": true,
+        "temperature": 69,
+        "probabilityOfPrecipitation": { "value": 0 },
+        "shortForecast": "Sunny"
+      },
+      {
+        "name": "Saturday Night",
+        "startTime": "2026-10-24T18:00:00-04:00",
+        "isDaytime": false,
+        "temperature": 44,
+        "probabilityOfPrecipitation": { "value": 0 },
+        "shortForecast": "Partly Cloudy"
+      },
+      {
+        "name": "Sunday",
+        "startTime": "2026-10-25T06:00:00-04:00",
+        "isDaytime": true,
+        "temperature": 73,
+        "probabilityOfPrecipitation": { "value": 0 },
+        "shortForecast": "Mostly Sunny"
+      },
+      {
+        "name": "Sunday Night",
+        "startTime": "2026-10-25T18:00:00-04:00",
+        "isDaytime": false,
+        "temperature": 46,
+        "probabilityOfPrecipitation": { "value": 0 },
+        "shortForecast": "Partly Cloudy"
+      }
+    ]
+  }
+}

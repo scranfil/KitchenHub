@@ -1,0 +1,471 @@
+:root {
+  --bg: #f3efe6;
+  --fg: #161616;
+  --muted: #3d3d3d;
+  --line: #c9c2b3;
+  --panel: #ebe6db;
+  --alert-fg: #fff7f4;
+  --font: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+}
+
+.theme-night {
+  --bg: #000000;
+  --fg: #8a8a8a;
+  --muted: #6e6e6e;
+  --line: #2a2a2a;
+  --panel: #0c0c0c;
+  --alert-fg: #d0d0d0;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 2.6vh;
+}
+
+#root {
+  box-sizing: border-box;
+  height: 100%;
+  padding: 1.2vh 1.4vw;
+  display: grid;
+  grid-template-rows: auto 31vh minmax(0, 1fr) 3.8vh;
+  grid-template-columns: 1fr;
+  min-height: 0;
+  position: relative;
+}
+
+.alerts {
+  box-sizing: border-box;
+  min-height: 4.2vh;
+  padding: 0.6vh 1vw;
+  margin-bottom: 0.8vh;
+  display: flex;
+  align-items: baseline;
+  gap: 1.2vw;
+  font-size: 2.4vh;
+  line-height: 1.2;
+}
+
+.alerts[hidden],
+.alerts.is-empty {
+  /* Stay in the grid so an empty banner does not shift the rows below it. */
+  display: flex !important;
+  visibility: hidden;
+  height: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+}
+
+.alerts.severity-extreme,
+.alerts.severity-severe {
+  background: #9b1b1b;
+  color: var(--alert-fg);
+}
+
+.alerts.severity-moderate {
+  background: #9a4300;
+  color: var(--alert-fg);
+}
+
+.alerts.severity-minor,
+.alerts.severity-unknown {
+  background: #b8860b;
+  color: #1a1404;
+}
+
+.alert-event {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.alert-headline {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 1.05fr;
+  gap: 1.2vw;
+  min-height: 0;
+  align-items: center;
+}
+
+.clock-time {
+  display: flex;
+  align-items: flex-start;
+  gap: 1vw;
+  line-height: 0.92;
+}
+
+#clock-hhmm {
+  font-size: 12vh;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.clock-ampm {
+  font-size: 3.2vh;
+  margin-top: 1.4vh;
+  font-weight: 600;
+}
+
+.clock-date {
+  margin-top: 1vh;
+  font-size: 2.8vh;
+  color: var(--muted);
+}
+
+.current {
+  min-height: 0;
+}
+
+.current-row {
+  display: grid;
+  grid-template-columns: 8vh min-content 1fr;
+  align-items: center;
+  gap: 1.4vw;
+}
+
+.dot {
+  display: inline-block;
+  margin: 0 0.7vw;
+  opacity: 0.7;
+}
+
+.current-icon .wx-icon,
+.hour-icon .wx-icon,
+.day-icon .wx-icon {
+  display: block;
+  width: 7.2vh;
+  height: 7.2vh;
+}
+
+.current-temp {
+  font-size: 9vh;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+}
+
+.current-cond {
+  font-size: 3.2vh;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.current-meta,
+.current-hilo,
+.current-sun {
+  margin-top: 0.7vh;
+  font-size: 2.6vh;
+  color: var(--muted);
+}
+
+.source-tag {
+  display: inline-block;
+  margin-top: 0.6vh;
+  font-size: 2vh;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+.stage {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.stage.is-detail .news {
+  display: none;
+}
+
+.hourly,
+.daily,
+.news {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel-kicker {
+  font-size: 2vh;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.5vh;
+}
+
+.hourly-strip,
+.daily-strip {
+  display: flex;
+  gap: 0.4vw;
+}
+
+.daily {
+  border-top: 1px solid var(--line);
+  margin-top: 0.8vh;
+  padding-top: 0.8vh;
+}
+
+.hour-slot,
+.day-card {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.hour-label,
+.day-name {
+  font-size: 2.2vh;
+  font-weight: 700;
+}
+
+.hour-icon .wx-icon,
+.day-icon .wx-icon {
+  width: 3.8vh;
+  height: 3.8vh;
+  margin: 0.3vh auto;
+}
+
+.hour-temp,
+.day-hilo {
+  font-size: 2.6vh;
+  font-weight: 650;
+}
+
+.hour-precip,
+.day-precip {
+  font-size: 2vh;
+  color: var(--muted);
+}
+
+.news {
+  border-top: 1px solid var(--line);
+  padding-top: 0.8vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.news-hit,
+.news-back {
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.news-hit {
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0.2vh 0.2vw;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.news-headline {
+  font-size: 4.6vh;
+  font-weight: 650;
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.news-meta,
+.news-detail-meta,
+.news-hint {
+  color: var(--muted);
+}
+
+.news-meta,
+.news-hint {
+  margin-top: 0.8vh;
+  font-size: 2.4vh;
+}
+
+.news-dots {
+  display: flex;
+  gap: 0.7vw;
+  margin-top: 1.2vh;
+}
+
+.news-dot {
+  width: 1vh;
+  height: 1vh;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+.news-dot.is-on {
+  background: var(--fg);
+}
+
+.news-detail {
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.news-detail[hidden] {
+  display: none;
+}
+
+.news-back {
+  background: transparent;
+  border: 1px solid var(--line);
+  font-size: 2.4vh;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1vh 1.6vw;
+  margin: 0 0 1.4vh;
+}
+
+.news-detail-title {
+  margin: 0;
+  font-size: 4.4vh;
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.news-detail-meta {
+  margin-top: 1vh;
+  font-size: 2.6vh;
+}
+
+.news-detail-body {
+  margin-top: 1.6vh;
+  font-size: 3.2vh;
+  line-height: 1.4;
+}
+
+.news-detail-body p {
+  margin: 0 0 1.4vh;
+}
+
+.placeholder-copy {
+  margin: 0.6vh 0 0;
+  color: var(--muted);
+  font-size: 2.6vh;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1vw;
+  font-size: 2vh;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+}
+
+.offline-pill {
+  background: var(--fg);
+  color: var(--bg);
+  padding: 0.2vh 0.8vw;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.offline-pill[hidden] {
+  display: none;
+}
+
+.is-stale {
+  opacity: 0.6;
+}
+
+.debug {
+  position: fixed;
+  left: 0.6vw;
+  bottom: 0.2vh;
+  z-index: 60;
+  font-size: 2vh;
+  color: var(--muted);
+  max-width: 90vw;
+  pointer-events: none;
+}
+
+.presence-camera {
+  position: fixed;
+  width: 2px;
+  height: 2px;
+  left: 0;
+  top: 0;
+  opacity: 0.02;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Desktop stand-in for the tablet backlight. Fully sets the real brightness. */
+body.presence-dim:not(.presence-device)::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: #000;
+  opacity: 0.78;
+  pointer-events: none;
+  z-index: 40;
+}
+
+@media (max-width: 1100px) {
+  #root {
+    grid-template-rows: auto 29vh minmax(0, 1fr) 4vh;
+  }
+
+  .stage {
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  #clock-hhmm {
+    font-size: 12vh;
+  }
+
+  .hour-slot:nth-child(n+9) {
+    display: none;
+  }
+
+  .day-precip {
+    display: none;
+  }
+}
+
+@media (max-height: 700px) {
+  .current-cond {
+    font-size: 2.8vh;
+  }
+
+  .hour-icon .wx-icon,
+  .day-icon .wx-icon {
+    width: 3.2vh;
+    height: 3.2vh;
+  }
+}

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#f3efe6">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Kitchen Hub">
+  <title>Kitchen Hub</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css?v=202610231120">
+</head>
+<body class="theme-day">
+  <div id="root">
+    <section id="alerts" class="alerts is-empty" aria-label="Weather alerts" hidden></section>
+
+    <div class="hero">
+      <section id="clock" class="clock" aria-label="Clock">
+        <div class="clock-time">
+          <span id="clock-hhmm">--:--</span>
+          <span id="clock-ampm" class="clock-ampm"></span>
+        </div>
+        <div id="clock-date" class="clock-date"></div>
+      </section>
+
+      <section id="current" class="current" aria-label="Current weather">
+        <div class="placeholder-copy">Loading weather…</div>
+      </section>
+    </div>
+
+    <div id="stage" class="stage">
+      <section id="hourly" class="hourly" aria-label="Hourly forecast">
+        <div class="panel-kicker">Next 12 hours</div>
+      </section>
+
+      <section id="daily" class="daily" aria-label="Five day forecast"></section>
+
+      <section id="news" class="news" aria-label="News"></section>
+      <section id="news-detail" class="news-detail" aria-label="Story detail" hidden></section>
+    </div>
+
+    <footer id="status" class="status" aria-label="Update status">
+      <span id="status-times">Weather — · News —</span>
+      <span id="offline-pill" class="offline-pill" hidden>Offline, showing cached data</span>
+    </footer>
+  </div>
+  <div id="debug" class="debug" hidden></div>
+
+  <script src="config.js?v=202610211255"></script>
+  <script src="js/util.js?v=202610211245"></script>
+  <script src="js/icons.js?v=202610211245"></script>
+  <script src="js/weather.js?v=202610231120"></script>
+  <script src="js/alerts.js?v=202610211245"></script>
+  <script src="js/news.js?v=202610211250"></script>
+  <script src="js/presence.js?v=202610242130"></script>
+  <script src="js/app.js?v=202610242110"></script>
+</body>
+</html>

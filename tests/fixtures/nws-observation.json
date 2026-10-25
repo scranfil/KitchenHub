@@ -1,0 +1,12 @@
+{
+  "properties": {
+    "timestamp": "2026-10-21T14:55:00+00:00",
+    "textDescription": "Clear",
+    "temperature": { "unitCode": "wmoUnit:degC", "value": 16 },
+    "windDirection": { "unitCode": "wmoUnit:degree_(angle)", "value": 140 },
+    "windSpeed": { "unitCode": "wmoUnit:km_h-1", "value": 5.4 },
+    "relativeHumidity": { "unitCode": "wmoUnit:percent", "value": 60.66359039741 },
+    "windChill": { "unitCode": "wmoUnit:degC", "value": null },
+    "heatIndex": { "unitCode": "wmoUnit:degC", "value": null }
+  }
+}

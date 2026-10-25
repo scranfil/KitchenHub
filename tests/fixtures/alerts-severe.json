@@ -1,0 +1,38 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "properties": {
+        "event": "Wind Advisory",
+        "headline": "Wind Advisory issued October 21 at 2:00PM EDT until 7:00 PM EDT",
+        "severity": "Minor",
+        "urgency": "Expected",
+        "effective": "2026-10-21T14:00:00-04:00",
+        "expires": "2026-10-21T19:00:00-04:00",
+        "description": "Gusty winds expected."
+      }
+    },
+    {
+      "properties": {
+        "event": "Severe Thunderstorm Warning",
+        "headline": "Severe Thunderstorm Warning until 7:00 PM EDT",
+        "severity": "Severe",
+        "urgency": "Immediate",
+        "effective": "2026-10-21T16:00:00-04:00",
+        "expires": "2026-10-21T19:00:00-04:00",
+        "description": "Damaging winds and hail."
+      }
+    },
+    {
+      "properties": {
+        "event": "Flood Watch",
+        "headline": "Flood Watch in effect",
+        "severity": "Moderate",
+        "urgency": "Future",
+        "effective": "2026-10-21T16:00:00-04:00",
+        "expires": "2026-10-21T23:00:00-04:00",
+        "description": "Heavy rain possible."
+      }
+    }
+  ]
+}
