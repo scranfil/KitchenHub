@@ -185,14 +185,18 @@ body {
 .stage {
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .hourly,
 .daily,
 .news {
+  min-width: 0;
   min-height: 0;
-  overflow: hidden;
 }
 
 .panel-kicker {
@@ -207,7 +211,11 @@ body {
 .hourly-strip,
 .daily-strip {
   display: flex;
+  width: 100%;
+  min-width: 0;
   gap: 0.4vw;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .daily {
@@ -218,8 +226,8 @@ body {
 
 .hour-slot,
 .day-card {
-  flex: 1;
-  min-width: 0;
+  flex: 1 0 11vh;
+  min-width: 11vh;
   text-align: center;
 }
 
@@ -265,7 +273,7 @@ body {
 }
 
 .news-hit {
-  touch-action: manipulation;
+  touch-action: pan-y;
   -webkit-user-select: none;
   user-select: none;
   flex: 1;
@@ -326,7 +334,7 @@ body {
   right: 0;
   top: 0;
   bottom: 0;
-  z-index: 30;
+  z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -349,9 +357,13 @@ body {
 .news-modal-card {
   position: relative;
   z-index: 1;
+  box-sizing: border-box;
   width: 100%;
   max-width: 980px;
   max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--line);
@@ -359,9 +371,15 @@ body {
 }
 
 .news-modal-scroll {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-height: 0;
   max-height: 88vh;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
   padding: 2.2vh 2vw 3vh;
 }
 
@@ -492,15 +510,11 @@ body:not(.presence-device)::after {
   }
 
   .stage {
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
   }
 
   #clock-hhmm {
     font-size: 12vh;
-  }
-
-  .hour-slot:nth-child(n+9) {
-    display: none;
   }
 
   .day-precip {

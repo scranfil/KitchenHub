@@ -809,13 +809,6 @@
       swipe.x = ev.clientX;
       swipe.y = ev.clientY;
       rememberPressed();
-      if (ev.currentTarget.id === 'news' && ev.currentTarget.setPointerCapture) {
-        try {
-          ev.currentTarget.setPointerCapture(ev.pointerId);
-        } catch (err) {
-          console.error('[news]', err);
-        }
-      }
     }
 
     function releasePointer() {
@@ -831,9 +824,11 @@
       }
       var dx = ev.clientX - swipe.x;
       var dy = ev.clientY - swipe.y;
-      var swiped = Math.abs(dx) >= SWIPE_MIN_PX && Math.abs(dx) > Math.abs(dy);
+      var absX = Math.abs(dx);
+      var absY = Math.abs(dy);
+      var swiped = absX >= SWIPE_MIN_PX && absX > absY;
       swipe.active = false;
-      if (swiped) {
+      if (swiped && ev.currentTarget && ev.currentTarget.id === 'news') {
         // The click that follows a swipe must not also open the story.
         // Clear it on a timer so a missed click cannot swallow the next tap.
         swipe.suppress = true;
@@ -844,6 +839,12 @@
         ev.stopPropagation();
         step(dx < 0 ? 1 : -1);
         pressedKey = '';
+        return;
+      }
+      // A drag scrolls the forecast or the story. Only a tap opens the headline.
+      if (absX >= SWIPE_MIN_PX || absY >= SWIPE_MIN_PX) {
+        pressedKey = '';
+        releasePointer();
         return;
       }
       if (!detailOpen && ev.currentTarget && ev.currentTarget.id === 'news') {
