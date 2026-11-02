@@ -7,12 +7,25 @@ const cfg = {
   timezone: 'America/New_York'
 };
 
-test('builds a radar map centered on the configured location', function () {
-  var url = weather.radarMapUrl(cfg);
-  assert.equal(url.indexOf('https://mesonet.agron.iastate.edu/GIS/radmap.php?') === 0, true);
-  assert.equal(url.indexOf('bbox=-88.38,38.44,-83.58,41.34') !== -1, true);
-  assert.equal(url.indexOf('layers[]=nexrad') !== -1, true);
-  assert.equal(url.indexOf('layers[]=uscounties') !== -1, true);
+test('keeps the point under a finger when the radar zooms', function () {
+  var lat = cfg.location.lat;
+  var lon = cfg.location.lon;
+  var zoom = weather.RADAR_DEFAULT_ZOOM;
+  var width = 800;
+  var height = 600;
+  var same = weather.centerForAnchor(lat, lon, width, height, lat, lon, width / 2, height / 2, zoom + 2);
+  assert.ok(Math.abs(same.lat - lat) < 0.000001);
+  assert.ok(Math.abs(same.lon - lon) < 0.000001);
+  var ax = weather.mercatorX(lon, zoom) - width / 2;
+  var ay = weather.mercatorY(lat, zoom) - height / 2;
+  var anchorLon = weather.lonFromMercatorX(ax, zoom);
+  var anchorLat = weather.latFromMercatorY(ay, zoom);
+  var shifted = weather.centerForAnchor(lat, lon, width, height, anchorLat, anchorLon, 0, 0, zoom + 1);
+  var left = weather.mercatorX(shifted.lon, zoom + 1) - width / 2;
+  var top = weather.mercatorY(shifted.lat, zoom + 1) - height / 2;
+  assert.ok(Math.abs(left - weather.mercatorX(anchorLon, zoom + 1)) < 0.01);
+  assert.ok(Math.abs(top - weather.mercatorY(anchorLat, zoom + 1)) < 0.01);
+  assert.equal(weather.RADAR_LOCAL_ZOOM, 10);
 });
 
 test('points and sun URLs match the weather app', function () {

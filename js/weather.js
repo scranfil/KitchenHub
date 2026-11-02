@@ -690,23 +690,58 @@
     };
   }
 
-  function radarMapUrl(cfg) {
-    var loc = (cfg && cfg.location) || {};
-    var lat = Number(loc.lat);
-    var lon = Number(loc.lon);
-    if (isNaN(lat)) {
-      lat = 39.8947;
+  var RADAR_MIN_ZOOM = 4;
+  var RADAR_MAX_ZOOM = 13;
+  var RADAR_DEFAULT_ZOOM = 9;
+  var RADAR_LOCAL_ZOOM = 10;
+  var RADAR_NATIVE_ZOOM = 8;
+
+  function mercatorX(lon, zoom) {
+    return ((lon + 180) / 360) * Math.pow(2, zoom) * 256;
+  }
+
+  function mercatorY(lat, zoom) {
+    var s = Math.sin(lat * Math.PI / 180);
+    var y = 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
+    return y * Math.pow(2, zoom) * 256;
+  }
+
+  function lonFromMercatorX(x, zoom) {
+    return x / (Math.pow(2, zoom) * 256) * 360 - 180;
+  }
+
+  function latFromMercatorY(y, zoom) {
+    var n = Math.PI - (2 * Math.PI * y) / (Math.pow(2, zoom) * 256);
+    return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  }
+
+  function clampRadarZoom(zoom) {
+    if (zoom < RADAR_MIN_ZOOM) {
+      return RADAR_MIN_ZOOM;
     }
-    if (isNaN(lon)) {
-      lon = -85.9786;
+    if (zoom > RADAR_MAX_ZOOM) {
+      return RADAR_MAX_ZOOM;
     }
-    var west = (lon - 2.4).toFixed(2);
-    var south = (lat - 1.45).toFixed(2);
-    var east = (lon + 2.4).toFixed(2);
-    var north = (lat + 1.45).toFixed(2);
-    return 'https://mesonet.agron.iastate.edu/GIS/radmap.php?width=1200&height=800' +
-      '&bbox=' + west + ',' + south + ',' + east + ',' + north +
-      '&layers[]=uscounties&layers[]=interstates&layers[]=nexrad&layers[]=sbw&layers[]=legend';
+    return zoom;
+  }
+
+  function centerForAnchor(lat, lon, width, height, anchorLat, anchorLon, viewX, viewY, zoom) {
+    var ax = mercatorX(anchorLon, zoom);
+    var ay = mercatorY(anchorLat, zoom);
+    var cx = ax + width / 2 - viewX;
+    var cy = ay + height / 2 - viewY;
+    var nextLat = latFromMercatorY(cy, zoom);
+    if (nextLat > 85) {
+      nextLat = 85;
+    }
+    if (nextLat < -85) {
+      nextLat = -85;
+    }
+    return {
+      lat: nextLat,
+      lon: lonFromMercatorX(cx, zoom),
+      zoom: zoom
+    };
   }
 
   function openMeteoUrl(cfg, mode) {
@@ -934,6 +969,11 @@
   var dayUtil = null;
   var dayDetailBound = false;
   var mapOpen = false;
+  var radarView = null;
+  var radarFrame = null;
+  var radarPointers = {};
+  var radarGesture = null;
+  var radarLastTap = 0;
 
   function dayNode(tag, className, text) {
     var node = document.createElement(tag);
@@ -1154,15 +1194,374 @@
     }
   }
 
-  function radarSrc() {
-    var cfg = dayUtil && dayUtil.cfg ? dayUtil.cfg : {};
-    return radarMapUrl(cfg) + '&t=' + String(Date.now());
-  }
-
-  function placeName() {
+  function mapLocation() {
     var cfg = dayUtil && dayUtil.cfg ? dayUtil.cfg : {};
     var loc = cfg.location || {};
-    return loc.name || 'home';
+    var lat = Number(loc.lat);
+    var lon = Number(loc.lon);
+    if (isNaN(lat)) {
+      lat = 39.8947;
+    }
+    if (isNaN(lon)) {
+      lon = -85.9786;
+    }
+    return { lat: lat, lon: lon, name: loc.name || 'home' };
+  }
+
+  function radarViewEl() {
+    var panel = dayUtil ? dayUtil.$('map-detail') : null;
+    return panel ? panel.querySelector('.radar-view') : null;
+  }
+
+  function wrapTileX(x, zoom) {
+    var n = Math.pow(2, zoom);
+    var wrapped = x % n;
+    if (wrapped < 0) {
+      wrapped += n;
+    }
+    return wrapped;
+  }
+
+  function syncTileLayer(layer, specs) {
+    var keep = {};
+    var nodes = layer.children;
+    var i;
+    for (i = nodes.length - 1; i >= 0; i--) {
+      var key = nodes[i].getAttribute('data-key');
+      if (!specs[key]) {
+        layer.removeChild(nodes[i]);
+      } else {
+        keep[key] = nodes[i];
+      }
+    }
+    var id;
+    for (id in specs) {
+      if (!Object.prototype.hasOwnProperty.call(specs, id)) {
+        continue;
+      }
+      var spec = specs[id];
+      var img = keep[id];
+      if (!img) {
+        img = document.createElement('img');
+        img.className = 'radar-tile' + (spec.precip ? ' is-precip' : '');
+        img.alt = '';
+        img.draggable = false;
+        img.setAttribute('data-key', id);
+        img.src = spec.src;
+        layer.appendChild(img);
+      }
+      img.style.left = spec.left + 'px';
+      img.style.top = spec.top + 'px';
+      img.style.width = spec.size + 'px';
+      img.style.height = spec.size + 'px';
+    }
+  }
+
+  function tileSpecs(urlZoom, urlFor, precip, keySuffix) {
+    var view = radarViewEl();
+    var specs = {};
+    if (!view || !radarView) {
+      return specs;
+    }
+    var width = view.clientWidth;
+    var height = view.clientHeight;
+    if (!width || !height) {
+      return specs;
+    }
+    var zoom = radarView.zoom;
+    var centerX = mercatorX(radarView.lon, zoom);
+    var centerY = mercatorY(radarView.lat, zoom);
+    var scale = Math.pow(2, zoom - urlZoom);
+    var size = 256 * scale;
+    var left = centerX - width / 2;
+    var top = centerY - height / 2;
+    var x0 = Math.floor(left / size);
+    var y0 = Math.floor(top / size);
+    var x1 = Math.floor((left + width) / size);
+    var y1 = Math.floor((top + height) / size);
+    var n = Math.pow(2, urlZoom);
+    var tx;
+    var ty;
+    for (ty = y0; ty <= y1; ty++) {
+      if (ty < 0 || ty >= n) {
+        continue;
+      }
+      for (tx = x0; tx <= x1; tx++) {
+        var wrapped = wrapTileX(tx, urlZoom);
+        var key = (precip ? 'r' : 'b') + urlZoom + '/' + wrapped + '/' + ty + (keySuffix || '');
+        specs[key] = {
+          src: urlFor(urlZoom, wrapped, ty),
+          left: tx * size - left,
+          top: ty * size - top,
+          size: size,
+          precip: precip
+        };
+      }
+    }
+    return specs;
+  }
+
+  function paintRadar() {
+    var view = radarViewEl();
+    if (!view || !radarView) {
+      return;
+    }
+    var base = view.querySelector('.radar-base');
+    var precip = view.querySelector('.radar-precip');
+    var home = view.querySelector('.radar-home');
+    var zoom = radarView.zoom;
+    var tileZ = Math.round(zoom);
+    if (tileZ < RADAR_MIN_ZOOM) {
+      tileZ = RADAR_MIN_ZOOM;
+    }
+    if (tileZ > RADAR_MAX_ZOOM) {
+      tileZ = RADAR_MAX_ZOOM;
+    }
+    syncTileLayer(base, tileSpecs(tileZ, function (z, x, y) {
+      return 'https://tile.openstreetmap.org/' + z + '/' + x + '/' + y + '.png';
+    }, false, ''));
+    var radarZ = tileZ < RADAR_NATIVE_ZOOM ? tileZ : RADAR_NATIVE_ZOOM;
+    var urlZ = radarZ - 1;
+    if (radarFrame) {
+      syncTileLayer(precip, tileSpecs(urlZ, function (z, x, y) {
+        return radarFrame.host + radarFrame.path + '/256/' + z + '/' + x + '/' + y + '/2/1_0.png';
+      }, true, radarFrame.path));
+    } else {
+      syncTileLayer(precip, {});
+    }
+    var width = view.clientWidth;
+    var height = view.clientHeight;
+    var dx = mercatorX(radarView.homeLon, zoom) - mercatorX(radarView.lon, zoom);
+    var dy = mercatorY(radarView.homeLat, zoom) - mercatorY(radarView.lat, zoom);
+    home.style.left = (width / 2 + dx) + 'px';
+    home.style.top = (height / 2 + dy) + 'px';
+    var zoomIn = view.querySelector('.radar-zoom-in');
+    var zoomOut = view.querySelector('.radar-zoom-out');
+    if (zoomIn) {
+      zoomIn.disabled = zoom >= RADAR_MAX_ZOOM - 0.01;
+    }
+    if (zoomOut) {
+      zoomOut.disabled = zoom <= RADAR_MIN_ZOOM + 0.01;
+    }
+  }
+
+  function zoomMapAt(delta, clientX, clientY) {
+    var view = radarViewEl();
+    if (!view || !radarView) {
+      return;
+    }
+    var rect = view.getBoundingClientRect();
+    var viewX = clientX - rect.left;
+    var viewY = clientY - rect.top;
+    var zoom = clampRadarZoom(radarView.zoom + delta);
+    var anchorX = mercatorX(radarView.lon, radarView.zoom) - rect.width / 2 + viewX;
+    var anchorY = mercatorY(radarView.lat, radarView.zoom) - rect.height / 2 + viewY;
+    var anchorLon = lonFromMercatorX(anchorX, radarView.zoom);
+    var anchorLat = latFromMercatorY(anchorY, radarView.zoom);
+    var next = centerForAnchor(
+      radarView.lat, radarView.lon, rect.width, rect.height,
+      anchorLat, anchorLon, viewX, viewY, zoom
+    );
+    radarView.lat = next.lat;
+    radarView.lon = next.lon;
+    radarView.zoom = zoom;
+    paintRadar();
+  }
+
+  function zoomMapBy(delta) {
+    var view = radarViewEl();
+    if (!view) {
+      return;
+    }
+    var rect = view.getBoundingClientRect();
+    zoomMapAt(delta, rect.left + rect.width / 2, rect.top + rect.height / 2);
+  }
+
+  function recenterRadar(zoom) {
+    if (!radarView) {
+      return;
+    }
+    radarView.lat = radarView.homeLat;
+    radarView.lon = radarView.homeLon;
+    radarView.zoom = zoom;
+    paintRadar();
+  }
+
+  function loadRadarFrame() {
+    if (!dayUtil) {
+      return Promise.resolve();
+    }
+    return dayUtil.fetchJson('rainviewer', 'https://api.rainviewer.com/public/weather-maps.json', {
+      timeout: 8000
+    }).then(function (data) {
+      var past = data && data.radar && data.radar.past ? data.radar.past : [];
+      var last = past.length ? past[past.length - 1] : null;
+      if (!last || !data.host) {
+        throw new Error('no radar frame');
+      }
+      radarFrame = { host: data.host, path: last.path };
+      paintRadar();
+      var view = radarViewEl();
+      var status = view ? view.querySelector('.radar-status') : null;
+      if (status) {
+        status.hidden = true;
+      }
+    }).catch(function (err) {
+      console.error('[radar]', err);
+      var view = radarViewEl();
+      var status = view ? view.querySelector('.radar-status') : null;
+      if (status) {
+        status.hidden = false;
+        status.textContent = 'Radar unavailable';
+      }
+    });
+  }
+
+  function radarPointerList() {
+    var out = [];
+    var id;
+    for (id in radarPointers) {
+      if (Object.prototype.hasOwnProperty.call(radarPointers, id)) {
+        out.push(radarPointers[id]);
+      }
+    }
+    return out;
+  }
+
+  function inZoomControl(node) {
+    while (node) {
+      if (node.classList && node.classList.contains('radar-zoom')) {
+        return true;
+      }
+      node = node.parentNode;
+    }
+    return false;
+  }
+
+  function onRadarPointerDown(ev) {
+    if (inZoomControl(ev.target)) {
+      return;
+    }
+    if (ev.pointerType === 'mouse' && ev.button !== 0) {
+      return;
+    }
+    radarPointers[ev.pointerId] = { x: ev.clientX, y: ev.clientY, downX: ev.clientX, downY: ev.clientY };
+    if (ev.currentTarget.setPointerCapture) {
+      ev.currentTarget.setPointerCapture(ev.pointerId);
+    }
+    var pts = radarPointerList();
+    if (pts.length === 1) {
+      radarGesture = { mode: 'pan', x: ev.clientX, y: ev.clientY, lat: radarView.lat, lon: radarView.lon };
+    } else if (pts.length >= 2) {
+      var dx = pts[1].x - pts[0].x;
+      var dy = pts[1].y - pts[0].y;
+      radarGesture = {
+        mode: 'pinch',
+        dist: Math.sqrt(dx * dx + dy * dy) || 1,
+        zoom: radarView.zoom,
+        lat: radarView.lat,
+        lon: radarView.lon,
+        midX: (pts[0].x + pts[1].x) / 2,
+        midY: (pts[0].y + pts[1].y) / 2
+      };
+    }
+    ev.preventDefault();
+  }
+
+  function onRadarPointerMove(ev) {
+    if (!radarPointers[ev.pointerId] || !radarGesture || !radarView) {
+      return;
+    }
+    radarPointers[ev.pointerId].x = ev.clientX;
+    radarPointers[ev.pointerId].y = ev.clientY;
+    var view = ev.currentTarget;
+    var rect = view.getBoundingClientRect();
+    if (radarGesture.mode === 'pan') {
+      var dx = ev.clientX - radarGesture.x;
+      var dy = ev.clientY - radarGesture.y;
+      var cx = mercatorX(radarGesture.lon, radarView.zoom) - dx;
+      var cy = mercatorY(radarGesture.lat, radarView.zoom) - dy;
+      radarView.lon = lonFromMercatorX(cx, radarView.zoom);
+      radarView.lat = latFromMercatorY(cy, radarView.zoom);
+      if (radarView.lat > 85) {
+        radarView.lat = 85;
+      }
+      if (radarView.lat < -85) {
+        radarView.lat = -85;
+      }
+      paintRadar();
+      return;
+    }
+    var pts = radarPointerList();
+    if (pts.length < 2) {
+      return;
+    }
+    var sepX = pts[1].x - pts[0].x;
+    var sepY = pts[1].y - pts[0].y;
+    var dist = Math.sqrt(sepX * sepX + sepY * sepY) || 1;
+    var zoom = clampRadarZoom(radarGesture.zoom + Math.log(dist / radarGesture.dist) / Math.LN2);
+    var midX = (pts[0].x + pts[1].x) / 2;
+    var midY = (pts[0].y + pts[1].y) / 2;
+    var anchorX = mercatorX(radarGesture.lon, radarGesture.zoom) - rect.width / 2 + (radarGesture.midX - rect.left);
+    var anchorY = mercatorY(radarGesture.lat, radarGesture.zoom) - rect.height / 2 + (radarGesture.midY - rect.top);
+    var next = centerForAnchor(
+      radarGesture.lat, radarGesture.lon, rect.width, rect.height,
+      latFromMercatorY(anchorY, radarGesture.zoom),
+      lonFromMercatorX(anchorX, radarGesture.zoom),
+      midX - rect.left, midY - rect.top, zoom
+    );
+    radarView.lat = next.lat;
+    radarView.lon = next.lon;
+    radarView.zoom = zoom;
+    paintRadar();
+  }
+
+  function onRadarPointerUp(ev) {
+    var start = radarPointers[ev.pointerId];
+    delete radarPointers[ev.pointerId];
+    var pts = radarPointerList();
+    if (!pts.length) {
+      var moved = start && (Math.abs(ev.clientX - start.downX) > 8 || Math.abs(ev.clientY - start.downY) > 8);
+      if (!moved && start) {
+        var now = Date.now();
+        if (now - radarLastTap < 320) {
+          zoomMapAt(1, ev.clientX, ev.clientY);
+          radarLastTap = 0;
+        } else {
+          radarLastTap = now;
+        }
+      }
+      radarGesture = null;
+      return;
+    }
+    radarGesture = { mode: 'pan', x: pts[0].x, y: pts[0].y, lat: radarView.lat, lon: radarView.lon };
+  }
+
+  function onRadarWheel(ev) {
+    ev.preventDefault();
+    var step = ev.deltaMode === 1 ? (ev.deltaY > 0 ? -1 : 1) : (-ev.deltaY / 280);
+    if (!step) {
+      return;
+    }
+    zoomMapAt(step, ev.clientX, ev.clientY);
+  }
+
+  function radarButton(className, label, text) {
+    var btn = dayNode('button', 'radar-zoom-btn ' + className, text);
+    btn.type = 'button';
+    btn.setAttribute('aria-label', label);
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (className === 'radar-zoom-in') {
+        zoomMapBy(1);
+      } else if (className === 'radar-zoom-out') {
+        zoomMapBy(-1);
+      } else {
+        recenterRadar(RADAR_LOCAL_ZOOM);
+      }
+    });
+    return btn;
   }
 
   function renderRadarMap() {
@@ -1173,11 +1572,21 @@
     if (!panel) {
       return;
     }
-    var existing = panel.querySelector('.radar-img');
-    if (existing) {
-      existing.src = radarSrc();
+    if (panel.querySelector('.radar-view') && radarView) {
+      paintRadar();
+      loadRadarFrame();
       return;
     }
+    var loc = mapLocation();
+    radarPointers = {};
+    radarGesture = null;
+    radarView = {
+      lat: loc.lat,
+      lon: loc.lon,
+      homeLat: loc.lat,
+      homeLon: loc.lon,
+      zoom: RADAR_DEFAULT_ZOOM
+    };
     dayUtil.emptyEl(panel);
     var backdrop = dayNode('div', 'day-modal-backdrop');
     var card = dayNode('div', 'day-modal-card map-modal-card');
@@ -1188,39 +1597,37 @@
     closeBtn.type = 'button';
     closeBtn.setAttribute('aria-label', 'Close');
     var scroller = dayNode('div', 'day-modal-scroll');
-    var title = dayNode('h2', 'map-title', 'Radar');
-    var frame = dayNode('div', 'radar-frame');
-    frame.hidden = true;
-    var img = document.createElement('img');
-    img.className = 'radar-img';
-    img.alt = 'NEXRAD radar centered on ' + placeName();
+    scroller.appendChild(dayNode('h2', 'map-title', 'Radar'));
+    var view = dayNode('div', 'radar-view');
+    view.setAttribute('aria-label', 'Radar centered on ' + loc.name);
+    view.appendChild(dayNode('div', 'radar-base'));
+    view.appendChild(dayNode('div', 'radar-precip'));
     var home = dayNode('span', 'radar-home');
     home.setAttribute('aria-hidden', 'true');
-    var status = dayNode('p', 'radar-status', 'Loading radar\u2026');
-    var caption = dayNode('p', 'radar-caption', 'White dot marks ' + placeName());
-    caption.hidden = true;
-    img.addEventListener('load', function () {
-      frame.hidden = false;
-      status.hidden = true;
-      caption.hidden = false;
-    });
-    img.addEventListener('error', function () {
-      frame.hidden = true;
-      status.hidden = false;
-      status.textContent = 'Radar map unavailable';
-    });
-    frame.appendChild(img);
-    frame.appendChild(home);
-    scroller.appendChild(title);
-    scroller.appendChild(status);
-    scroller.appendChild(frame);
-    scroller.appendChild(caption);
+    view.appendChild(home);
+    view.appendChild(dayNode('p', 'radar-status', 'Loading radar\u2026'));
+    var controls = dayNode('div', 'radar-zoom');
+    controls.appendChild(radarButton('radar-zoom-in', 'Zoom in', '+'));
+    controls.appendChild(radarButton('radar-zoom-out', 'Zoom out', '\u2212'));
+    controls.appendChild(radarButton('radar-zoom-home', 'Zoom to home', '\u25CE'));
+    view.appendChild(controls);
+    view.addEventListener('pointerdown', onRadarPointerDown);
+    view.addEventListener('pointermove', onRadarPointerMove);
+    view.addEventListener('pointerup', onRadarPointerUp);
+    view.addEventListener('pointercancel', onRadarPointerUp);
+    view.addEventListener('wheel', onRadarWheel, { passive: false });
+    scroller.appendChild(view);
+    scroller.appendChild(dayNode('p', 'radar-caption', 'Pinch or use + and \u2212 \u00b7 \u00a9 OpenStreetMap \u00b7 RainViewer'));
     card.appendChild(closeBtn);
     card.appendChild(scroller);
     panel.appendChild(backdrop);
     panel.appendChild(card);
     panel.hidden = false;
-    img.src = radarSrc();
+    paintRadar();
+    if (window.requestAnimationFrame) {
+      window.requestAnimationFrame(paintRadar);
+    }
+    loadRadarFrame();
   }
 
   function openRadarMap() {
@@ -1239,6 +1646,10 @@
 
   function closeRadarMap() {
     mapOpen = false;
+    radarView = null;
+    radarFrame = null;
+    radarPointers = {};
+    radarGesture = null;
     if (dayUtil) {
       dayUtil.clearTimer('radar-map');
       var panel = dayUtil.$('map-detail');
@@ -1668,7 +2079,13 @@
 
   exports.nwsUrls = nwsUrls;
   exports.openMeteoUrl = openMeteoUrl;
-  exports.radarMapUrl = radarMapUrl;
+  exports.mercatorX = mercatorX;
+  exports.mercatorY = mercatorY;
+  exports.lonFromMercatorX = lonFromMercatorX;
+  exports.latFromMercatorY = latFromMercatorY;
+  exports.centerForAnchor = centerForAnchor;
+  exports.RADAR_DEFAULT_ZOOM = RADAR_DEFAULT_ZOOM;
+  exports.RADAR_LOCAL_ZOOM = RADAR_LOCAL_ZOOM;
 
   if (typeof window !== 'undefined') {
     attachBrowserApi();
