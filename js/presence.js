@@ -238,9 +238,20 @@
     return false;
   }
 
+  function cameraAction(paused, trackState) {
+    if (trackState !== 'live') {
+      return 'reopen';
+    }
+    if (paused) {
+      return 'play';
+    }
+    return 'ok';
+  }
+
   exports.fullySettings = fullySettings;
   exports.createController = createController;
   exports.motionHit = motionHit;
+  exports.cameraAction = cameraAction;
   exports.DEFAULT_IDLE_SECONDS = DEFAULT_IDLE_SECONDS;
 
   function attachBrowserApi() {
@@ -316,6 +327,20 @@
       return attempt(0);
     }
 
+    function trackState(stream) {
+      var tracks = stream && stream.getVideoTracks ? stream.getVideoTracks() : [];
+      var i;
+      for (i = 0; i < tracks.length; i++) {
+        if (tracks[i].readyState === 'live') {
+          return 'live';
+        }
+      }
+      if (!tracks.length) {
+        return 'ended';
+      }
+      return tracks[0].readyState || 'ended';
+    }
+
     function startBrowserMotion(onMotion) {
       if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
         return;
@@ -335,6 +360,66 @@
       var ctx = canvas.getContext('2d');
       var prev = null;
       var seenGeneration = frameGeneration;
+      var opening = false;
+      var resumePending = false;
+      var resumeAt = 0;
+      var playingSince = 0;
+
+      function resumePlayback() {
+        if (resumePending || Date.now() < resumeAt || video.paused !== true) {
+          return;
+        }
+        if (cameraAction(true, trackState(video.srcObject)) !== 'play') {
+          return;
+        }
+        resumePending = true;
+        prev = null;
+        var played = video.play();
+        if (played && typeof played.then === 'function') {
+          played.then(function () {
+            resumePending = false;
+          }, function (err) {
+            resumePending = false;
+            resumeAt = Date.now() + 2000;
+            console.error('[presence] play', err);
+          });
+          return;
+        }
+        resumePending = false;
+      }
+
+      function ensureCamera() {
+        var action = cameraAction(video.paused, trackState(video.srcObject));
+        if (action === 'ok') {
+          return;
+        }
+        if (action === 'play') {
+          resumePlayback();
+          return;
+        }
+        if (opening || Date.now() < resumeAt) {
+          return;
+        }
+        opening = true;
+        stopStream(video.srcObject);
+        video.srcObject = null;
+        prev = null;
+        openCamera().then(function (stream) {
+          opening = false;
+          video.srcObject = stream;
+          var tracks = stream.getVideoTracks ? stream.getVideoTracks() : [];
+          var i;
+          for (i = 0; i < tracks.length; i++) {
+            tracks[i].addEventListener('ended', ensureCamera);
+            tracks[i].addEventListener('unmute', resumePlayback);
+          }
+          resumePlayback();
+        }).catch(function (err) {
+          opening = false;
+          resumeAt = Date.now() + 5000;
+          console.error('[presence] camera', err);
+        });
+      }
 
       function sample() {
         var rate = Number(presenceCfg().frameRate);
@@ -342,7 +427,8 @@
           rate = DEFAULT_FRAME_RATE;
         }
         setTimeout(sample, Math.round(1000 / rate));
-        if (!ctx || video.readyState < 2) {
+        ensureCamera();
+        if (!ctx || video.readyState < 2 || video.paused) {
           return;
         }
         try {
@@ -367,19 +453,21 @@
         }
       }
 
-      openCamera().then(function (stream) {
-        video.srcObject = stream;
-        var played = video.play();
-        if (played && typeof played.then === 'function') {
-          return played.then(function () {
-            sample();
-          });
-        }
-        sample();
-      }).catch(function (err) {
-        stopStream(video.srcObject);
-        console.error('[presence] camera', err);
+      video.addEventListener('playing', function () {
+        playingSince = Date.now();
       });
+      video.addEventListener('pause', function () {
+        if (playingSince && Date.now() - playingSince < 1000) {
+          resumeAt = Date.now() + 2000;
+        }
+        ensureCamera();
+      });
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+          ensureCamera();
+        }
+      });
+      sample();
     }
 
     function keepAwake() {

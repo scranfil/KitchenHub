@@ -77,6 +77,13 @@ test('camera motion ignores a still frame and catches a wave', function () {
   assert.equal(presence.motionHit(null, wave, 92), false);
 });
 
+test('a paused camera with a live track should play again', function () {
+  assert.equal(presence.cameraAction(true, 'live'), 'play');
+  assert.equal(presence.cameraAction(false, 'live'), 'ok');
+  assert.equal(presence.cameraAction(true, 'ended'), 'reopen');
+  assert.equal(presence.cameraAction(false, 'ended'), 'reopen');
+});
+
 test('camera motion ignores a whole-frame brightness change', function () {
   var still = [];
   var shifted = [];
