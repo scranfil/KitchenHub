@@ -39,6 +39,31 @@
     return null;
   }
 
+  function humidityValue(period) {
+    if (!period || !period.relativeHumidity) {
+      return null;
+    }
+    if (period.relativeHumidity.value == null || isNaN(Number(period.relativeHumidity.value))) {
+      return null;
+    }
+    return Number(period.relativeHumidity.value);
+  }
+
+  function textOrEmpty(value) {
+    return value ? String(value) : '';
+  }
+
+  function forecastBits(period) {
+    return {
+      precip: precipValue(period),
+      shortForecast: textOrEmpty(period && period.shortForecast),
+      detailedForecast: textOrEmpty(period && period.detailedForecast),
+      windSpeed: textOrEmpty(period && period.windSpeed),
+      windDirection: textOrEmpty(period && period.windDirection),
+      humidity: humidityValue(period)
+    };
+  }
+
   function parseMph(str) {
     if (typeof str === 'number' && !isNaN(str)) {
       return str;
@@ -91,14 +116,21 @@
     }
 
     if (list.length && list[0].isDaytime === false) {
+      var tonight = forecastBits(list[0]);
       cards.push({
         name: dayName(list[0], 0),
         high: null,
         low: list[0].temperature,
-        precip: precipValue(list[0]),
-        shortForecast: list[0].shortForecast || '',
+        precip: tonight.precip,
+        dayPrecip: tonight.precip,
+        shortForecast: tonight.shortForecast,
+        detailedForecast: tonight.detailedForecast,
+        windSpeed: tonight.windSpeed,
+        windDirection: tonight.windDirection,
+        humidity: tonight.humidity,
         isDaytime: false,
-        tonightOnly: true
+        tonightOnly: true,
+        night: null
       });
       i = 1;
     }
@@ -114,15 +146,26 @@
       }
       var night = list[i + 1];
       var low = null;
-      var precip = precipValue(day);
+      var dayBits = forecastBits(day);
+      var precip = dayBits.precip;
+      var nightCard = null;
       if (night && night.isDaytime === false) {
+        var nightBits = forecastBits(night);
         low = night.temperature;
-        var nightPrecip = precipValue(night);
         if (precip == null) {
-          precip = nightPrecip;
-        } else if (nightPrecip != null) {
-          precip = Math.max(precip, nightPrecip);
+          precip = nightBits.precip;
+        } else if (nightBits.precip != null) {
+          precip = Math.max(precip, nightBits.precip);
         }
+        nightCard = {
+          name: night.name || 'Night',
+          precip: nightBits.precip,
+          shortForecast: nightBits.shortForecast,
+          detailedForecast: nightBits.detailedForecast,
+          windSpeed: nightBits.windSpeed,
+          windDirection: nightBits.windDirection,
+          humidity: nightBits.humidity
+        };
         i += 2;
       } else {
         i += 1;
@@ -132,9 +175,15 @@
         high: day.temperature,
         low: low,
         precip: precip,
-        shortForecast: day.shortForecast || '',
+        dayPrecip: dayBits.precip,
+        shortForecast: dayBits.shortForecast,
+        detailedForecast: dayBits.detailedForecast,
+        windSpeed: dayBits.windSpeed,
+        windDirection: dayBits.windDirection,
+        humidity: dayBits.humidity,
         isDaytime: true,
-        tonightOnly: false
+        tonightOnly: false,
+        night: nightCard
       });
     }
 
@@ -253,10 +302,18 @@
         high: daily.temperature_2m_max ? daily.temperature_2m_max[i] : null,
         low: daily.temperature_2m_min ? daily.temperature_2m_min[i] : null,
         precip: daily.precipitation_probability_max ? daily.precipitation_probability_max[i] : null,
+        dayPrecip: daily.precipitation_probability_max ? daily.precipitation_probability_max[i] : null,
         shortForecast: '',
+        detailedForecast: '',
+        windSpeed: '',
+        windDirection: '',
+        humidity: null,
         weatherCode: daily.weather_code ? daily.weather_code[i] : null,
         isDaytime: true,
-        tonightOnly: false
+        tonightOnly: false,
+        night: null,
+        sunriseLabel: omClock(daily.sunrise ? daily.sunrise[i] : ''),
+        sunsetLabel: omClock(daily.sunset ? daily.sunset[i] : '')
       });
     }
 
@@ -343,6 +400,11 @@
     }
     var t = Date.parse(value);
     return isNaN(t) ? null : t;
+  }
+
+  function omClock(isoLocal) {
+    var label = formatOmLocal(isoLocal);
+    return label === '—' ? '' : label;
   }
 
   function formatOmLocal(isoLocal) {
@@ -628,6 +690,25 @@
     };
   }
 
+  function radarMapUrl(cfg) {
+    var loc = (cfg && cfg.location) || {};
+    var lat = Number(loc.lat);
+    var lon = Number(loc.lon);
+    if (isNaN(lat)) {
+      lat = 39.8947;
+    }
+    if (isNaN(lon)) {
+      lon = -85.9786;
+    }
+    var west = (lon - 2.4).toFixed(2);
+    var south = (lat - 1.45).toFixed(2);
+    var east = (lon + 2.4).toFixed(2);
+    var north = (lat + 1.45).toFixed(2);
+    return 'https://mesonet.agron.iastate.edu/GIS/radmap.php?width=1200&height=800' +
+      '&bbox=' + west + ',' + south + ',' + east + ',' + north +
+      '&layers[]=uscounties&layers[]=interstates&layers[]=nexrad&layers[]=sbw&layers[]=legend';
+  }
+
   function openMeteoUrl(cfg, mode) {
     var loc = cfg.location || {};
     var base = 'https://api.open-meteo.com/v1/forecast?latitude=' + loc.lat +
@@ -716,40 +797,55 @@
     return iconsApi.svgFromForecast(day.shortForecast, day.isDaytime !== false);
   }
 
+  function keywordLabel(key, isDaytime) {
+    if (key === 'sunny') {
+      return isDaytime === false ? 'Clear' : 'Sunny';
+    }
+    if (key === 'partly') {
+      return 'Partly cloudy';
+    }
+    if (key === 'cloudy') {
+      return 'Cloudy';
+    }
+    if (key === 'rain') {
+      return 'Rain';
+    }
+    if (key === 'showers') {
+      return 'Showers';
+    }
+    if (key === 'thunder') {
+      return 'Thunderstorms';
+    }
+    if (key === 'snow') {
+      return 'Snow';
+    }
+    if (key === 'fog') {
+      return 'Fog';
+    }
+    if (key === 'wind') {
+      return 'Windy';
+    }
+    return '';
+  }
+
   function conditionLabel(current) {
     if (current.condition) {
       return current.condition;
     }
     var iconsApi = icons();
     if (iconsApi && current.weatherCode != null) {
-      var key = iconsApi.wmoToKeyword(current.weatherCode);
-      if (key === 'sunny') {
-        return current.isDaytime === false ? 'Clear' : 'Sunny';
-      }
-      if (key === 'partly') {
-        return 'Partly cloudy';
-      }
-      if (key === 'cloudy') {
-        return 'Cloudy';
-      }
-      if (key === 'rain') {
-        return 'Rain';
-      }
-      if (key === 'showers') {
-        return 'Showers';
-      }
-      if (key === 'thunder') {
-        return 'Thunderstorms';
-      }
-      if (key === 'snow') {
-        return 'Snow';
-      }
-      if (key === 'fog') {
-        return 'Fog';
-      }
-      if (key === 'wind') {
-        return 'Windy';
-      }
+      return keywordLabel(iconsApi.wmoToKeyword(current.weatherCode), current.isDaytime) || '—';
+    }
+    return '—';
+  }
+
+  function dayCondition(day) {
+    if (day && day.shortForecast) {
+      return day.shortForecast;
+    }
+    var iconsApi = icons();
+    if (iconsApi && day && day.weatherCode != null) {
+      return keywordLabel(iconsApi.wmoToKeyword(day.weatherCode), day.isDaytime !== false) || '—';
     }
     return '—';
   }
@@ -773,6 +869,7 @@
     var iconsApi = icons();
     var el = util.$('current');
     var html = '';
+    html += '<button type="button" class="map-open" aria-label="Weather map">' + MAP_ICON + '</button>';
     html += '<div class="current-row">';
     html += '<div class="current-icon">' + currentIcon(iconsApi, model.current) + '</div>';
     html += '<div class="current-temp" id="current-temp">' + fmtTemp(model.current.temperature) + 'F</div>';
@@ -826,24 +923,440 @@
     applyStaleClass(el, meta.savedAt, util.cfg.refreshMinutes.hourly, meta.offline);
   }
 
+  var MAP_ICON = '<svg class="map-icon" viewBox="0 0 64 64" aria-hidden="true">' +
+    '<path fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round" d="M8 18l16-8 16 8 16-8v36l-16 8-16-8-16 8z"/>' +
+    '<path fill="none" stroke="currentColor" stroke-width="4" d="M24 10v36M40 18v36"/>' +
+    '<circle cx="40" cy="28" r="4" fill="currentColor"/>' +
+    '</svg>';
+
+  var latestDays = [];
+  var openDayIndex = -1;
+  var dayUtil = null;
+  var dayDetailBound = false;
+  var mapOpen = false;
+
+  function dayNode(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) {
+      node.className = className;
+    }
+    if (text != null) {
+      node.textContent = text;
+    }
+    return node;
+  }
+
+  function windPhrase(dir, speed) {
+    var d = dir ? String(dir).trim() : '';
+    var s = speed ? String(speed).trim() : '';
+    if (d && s) {
+      return d + ' ' + s;
+    }
+    return d || s;
+  }
+
+  function factLine(period) {
+    var parts = [];
+    if (!period) {
+      return '';
+    }
+    if (period.precip != null && !isNaN(Number(period.precip))) {
+      parts.push('Rain ' + fmtPrecip(period.precip));
+    }
+    var wind = windPhrase(period.windDirection, period.windSpeed);
+    if (wind) {
+      parts.push('Wind ' + wind);
+    }
+    if (period.humidity != null && !isNaN(Number(period.humidity))) {
+      parts.push('Humidity ' + fmtHumidity(period.humidity));
+    }
+    return parts.join(' · ');
+  }
+
+  function hiloLine(day) {
+    var parts = [];
+    if (!day.tonightOnly && day.high != null && !isNaN(Number(day.high))) {
+      parts.push('High ' + fmtTemp(day.high));
+    }
+    if (day.low != null && !isNaN(Number(day.low))) {
+      parts.push('Low ' + fmtTemp(day.low));
+    }
+    return parts.join(' · ') || '—';
+  }
+
+  function appendFacts(parent, period) {
+    var line = factLine(period);
+    if (line) {
+      parent.appendChild(dayNode('div', 'day-detail-facts', line));
+    }
+  }
+
+  function appendNarrative(parent, text) {
+    if (!text) {
+      return;
+    }
+    var body = dayNode('div', 'day-detail-body');
+    body.appendChild(dayNode('p', null, text));
+    parent.appendChild(body);
+  }
+
+  function renderDayDetail() {
+    if (!dayUtil) {
+      return;
+    }
+    var panel = dayUtil.$('day-detail');
+    var day = latestDays[openDayIndex];
+    if (!panel || !day) {
+      if (openDayIndex >= 0) {
+        closeDayDetail();
+      }
+      return;
+    }
+    var iconsApi = icons();
+    var scrollerPrev = panel.querySelector('.day-modal-scroll');
+    var keepScroll = scrollerPrev ? scrollerPrev.scrollTop : 0;
+    dayUtil.emptyEl(panel);
+    var backdrop = dayNode('div', 'day-modal-backdrop');
+    var card = dayNode('div', 'day-modal-card');
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-modal', 'true');
+    card.setAttribute('aria-label', (day.name || 'Day') + ' forecast');
+    var closeBtn = dayNode('button', 'day-close', '\u00d7');
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', 'Close');
+    var scroller = dayNode('div', 'day-modal-scroll');
+    var head = dayNode('div', 'day-detail-head');
+    var iconWrap = dayNode('div', 'day-detail-icon');
+    iconWrap.innerHTML = dayIcon(iconsApi, day);
+    var titles = dayNode('div', 'day-detail-titles');
+    titles.appendChild(dayNode('h2', 'day-detail-title', day.name || 'Day'));
+    titles.appendChild(dayNode('div', 'day-detail-cond', dayCondition(day)));
+    head.appendChild(iconWrap);
+    head.appendChild(titles);
+    scroller.appendChild(head);
+    scroller.appendChild(dayNode('div', 'day-detail-hilo', hiloLine(day)));
+    appendFacts(scroller, {
+      precip: day.dayPrecip != null ? day.dayPrecip : day.precip,
+      windDirection: day.windDirection,
+      windSpeed: day.windSpeed,
+      humidity: day.humidity
+    });
+    if (day.sunriseLabel && day.sunsetLabel) {
+      scroller.appendChild(dayNode('div', 'day-detail-facts', 'Sunrise ' + day.sunriseLabel + ' · Sunset ' + day.sunsetLabel));
+    }
+    appendNarrative(scroller, day.detailedForecast);
+    if (day.night && !day.tonightOnly) {
+      var night = dayNode('div', 'day-detail-night');
+      night.appendChild(dayNode('div', 'day-detail-kicker', day.night.name || 'Night'));
+      if (day.night.shortForecast) {
+        night.appendChild(dayNode('div', 'day-detail-cond', day.night.shortForecast));
+      }
+      appendFacts(night, day.night);
+      appendNarrative(night, day.night.detailedForecast);
+      scroller.appendChild(night);
+    }
+    card.appendChild(closeBtn);
+    card.appendChild(scroller);
+    panel.appendChild(backdrop);
+    panel.appendChild(card);
+    panel.hidden = false;
+    scroller.scrollTop = keepScroll;
+  }
+
+  function openDayDetail(index) {
+    if (!latestDays[index]) {
+      return;
+    }
+    var already = openDayIndex === index && dayUtil && dayUtil.$('day-detail') && !dayUtil.$('day-detail').hidden;
+    openDayIndex = index;
+    renderDayDetail();
+    if (!already && dayUtil) {
+      var panel = dayUtil.$('day-detail');
+      var closeBtn = panel ? panel.querySelector('.day-close') : null;
+      if (closeBtn && closeBtn.focus) {
+        closeBtn.focus();
+      }
+    }
+  }
+
+  function closeDayDetail() {
+    var index = openDayIndex;
+    openDayIndex = -1;
+    if (!dayUtil) {
+      return;
+    }
+    var panel = dayUtil.$('day-detail');
+    if (panel) {
+      panel.hidden = true;
+      dayUtil.emptyEl(panel);
+    }
+    if (index < 0) {
+      return;
+    }
+    var daily = dayUtil.$('daily');
+    var btn = daily ? daily.querySelector('[data-day-index="' + index + '"]') : null;
+    if (btn && btn.focus) {
+      btn.focus();
+    }
+  }
+
+  function syncDayDetail() {
+    if (openDayIndex < 0) {
+      return;
+    }
+    if (!latestDays[openDayIndex]) {
+      closeDayDetail();
+      return;
+    }
+    renderDayDetail();
+  }
+
+  function onDailyClick(ev) {
+    var node = ev.target;
+    var root = dayUtil ? dayUtil.$('daily') : null;
+    while (node && node !== root) {
+      if (node.getAttribute && node.getAttribute('data-day-index') != null) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        openDayDetail(Number(node.getAttribute('data-day-index')));
+        return;
+      }
+      node = node.parentNode;
+    }
+  }
+
+  function onDayDetailClick(ev) {
+    ev.stopPropagation();
+    var node = ev.target;
+    var panel = dayUtil ? dayUtil.$('day-detail') : null;
+    while (node && node !== panel) {
+      if (node.classList && node.classList.contains('day-close')) {
+        ev.preventDefault();
+        closeDayDetail();
+        return;
+      }
+      if (node.classList && node.classList.contains('day-modal-card')) {
+        return;
+      }
+      node = node.parentNode;
+    }
+    ev.preventDefault();
+    closeDayDetail();
+  }
+
+  function onDayKeydown(ev) {
+    if (openDayIndex < 0) {
+      return;
+    }
+    if (ev.key === 'Escape' || ev.key === 'Esc') {
+      ev.preventDefault();
+      closeDayDetail();
+    }
+  }
+
+  function radarSrc() {
+    var cfg = dayUtil && dayUtil.cfg ? dayUtil.cfg : {};
+    return radarMapUrl(cfg) + '&t=' + String(Date.now());
+  }
+
+  function placeName() {
+    var cfg = dayUtil && dayUtil.cfg ? dayUtil.cfg : {};
+    var loc = cfg.location || {};
+    return loc.name || 'home';
+  }
+
+  function renderRadarMap() {
+    if (!dayUtil) {
+      return;
+    }
+    var panel = dayUtil.$('map-detail');
+    if (!panel) {
+      return;
+    }
+    var existing = panel.querySelector('.radar-img');
+    if (existing) {
+      existing.src = radarSrc();
+      return;
+    }
+    dayUtil.emptyEl(panel);
+    var backdrop = dayNode('div', 'day-modal-backdrop');
+    var card = dayNode('div', 'day-modal-card map-modal-card');
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-modal', 'true');
+    card.setAttribute('aria-label', 'Weather map');
+    var closeBtn = dayNode('button', 'map-close', '\u00d7');
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', 'Close');
+    var scroller = dayNode('div', 'day-modal-scroll');
+    var title = dayNode('h2', 'map-title', 'Radar');
+    var frame = dayNode('div', 'radar-frame');
+    frame.hidden = true;
+    var img = document.createElement('img');
+    img.className = 'radar-img';
+    img.alt = 'NEXRAD radar centered on ' + placeName();
+    var home = dayNode('span', 'radar-home');
+    home.setAttribute('aria-hidden', 'true');
+    var status = dayNode('p', 'radar-status', 'Loading radar\u2026');
+    var caption = dayNode('p', 'radar-caption', 'White dot marks ' + placeName());
+    caption.hidden = true;
+    img.addEventListener('load', function () {
+      frame.hidden = false;
+      status.hidden = true;
+      caption.hidden = false;
+    });
+    img.addEventListener('error', function () {
+      frame.hidden = true;
+      status.hidden = false;
+      status.textContent = 'Radar map unavailable';
+    });
+    frame.appendChild(img);
+    frame.appendChild(home);
+    scroller.appendChild(title);
+    scroller.appendChild(status);
+    scroller.appendChild(frame);
+    scroller.appendChild(caption);
+    card.appendChild(closeBtn);
+    card.appendChild(scroller);
+    panel.appendChild(backdrop);
+    panel.appendChild(card);
+    panel.hidden = false;
+    img.src = radarSrc();
+  }
+
+  function openRadarMap() {
+    mapOpen = true;
+    renderRadarMap();
+    armRadarRefresh();
+    if (!dayUtil) {
+      return;
+    }
+    var panel = dayUtil.$('map-detail');
+    var closeBtn = panel ? panel.querySelector('.map-close') : null;
+    if (closeBtn && closeBtn.focus) {
+      closeBtn.focus();
+    }
+  }
+
+  function closeRadarMap() {
+    mapOpen = false;
+    if (dayUtil) {
+      dayUtil.clearTimer('radar-map');
+      var panel = dayUtil.$('map-detail');
+      if (panel) {
+        panel.hidden = true;
+        dayUtil.emptyEl(panel);
+      }
+      var btn = dayUtil.$('current') ? dayUtil.$('current').querySelector('.map-open') : null;
+      if (btn && btn.focus) {
+        btn.focus();
+      }
+    }
+  }
+
+  function armRadarRefresh() {
+    if (!dayUtil) {
+      return;
+    }
+    dayUtil.schedule('radar-map', function () {
+      if (!mapOpen) {
+        return;
+      }
+      renderRadarMap();
+      armRadarRefresh();
+    }, 5 * 60 * 1000);
+  }
+
+  function onCurrentClick(ev) {
+    var node = ev.target;
+    var root = dayUtil ? dayUtil.$('current') : null;
+    while (node && node !== root) {
+      if (node.classList && node.classList.contains('map-open')) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        openRadarMap();
+        return;
+      }
+      node = node.parentNode;
+    }
+  }
+
+  function onMapClick(ev) {
+    ev.stopPropagation();
+    var node = ev.target;
+    var panel = dayUtil ? dayUtil.$('map-detail') : null;
+    while (node && node !== panel) {
+      if (node.classList && node.classList.contains('map-close')) {
+        ev.preventDefault();
+        closeRadarMap();
+        return;
+      }
+      if (node.classList && node.classList.contains('day-modal-card')) {
+        return;
+      }
+      node = node.parentNode;
+    }
+    ev.preventDefault();
+    closeRadarMap();
+  }
+
+  function onMapKeydown(ev) {
+    if (!mapOpen) {
+      return;
+    }
+    if (ev.key === 'Escape' || ev.key === 'Esc') {
+      ev.preventDefault();
+      closeRadarMap();
+    }
+  }
+
+  function bindDayDetail(util) {
+    dayUtil = util;
+    if (dayDetailBound || typeof document === 'undefined') {
+      return;
+    }
+    dayDetailBound = true;
+    var dailyEl = util.$('daily');
+    var panel = util.$('day-detail');
+    var currentEl = util.$('current');
+    var mapPanel = util.$('map-detail');
+    if (dailyEl) {
+      dailyEl.addEventListener('click', onDailyClick);
+    }
+    if (panel) {
+      panel.addEventListener('click', onDayDetailClick);
+    }
+    if (currentEl) {
+      currentEl.addEventListener('click', onCurrentClick);
+    }
+    if (mapPanel) {
+      mapPanel.addEventListener('click', onMapClick);
+    }
+    document.addEventListener('keydown', onDayKeydown);
+    document.addEventListener('keydown', onMapKeydown);
+  }
+
   function renderDaily(util, days, meta) {
     var iconsApi = icons();
     var el = util.$('daily');
     var html = '<div class="panel-kicker">Next 5 days</div><div class="daily-strip">';
     var i;
     var list = days || [];
+    latestDays = [];
     for (i = 0; i < list.length && i < 5; i++) {
       var d = list[i];
-      html += '<div class="day-card">';
+      latestDays.push(d);
+      var label = (d.name || 'Day') + ', high ' + fmtTempPlain(d.high) + ', low ' + fmtTempPlain(d.low);
+      html += '<button type="button" class="day-card" data-day-index="' + i + '" aria-label="' + escapeText(label) + '">';
       html += '<div class="day-name">' + escapeText(d.name || '') + '</div>';
       html += '<div class="day-icon">' + dayIcon(iconsApi, d) + '</div>';
       html += '<div class="day-hilo">' + fmtTempPlain(d.high) + '/' + fmtTempPlain(d.low) + '</div>';
       html += '<div class="day-precip">' + fmtPrecip(d.precip) + '</div>';
-      html += '</div>';
+      html += '</button>';
     }
     html += '</div>';
     el.innerHTML = html;
     applyStaleClass(el, meta.savedAt, util.cfg.refreshMinutes.forecast, meta.offline);
+    syncDayDetail();
   }
 
   function escapeText(s) {
@@ -1139,10 +1652,14 @@
     }
 
     exports.init = function () {
+      bindDayDetail(util);
       renderCache();
       refresh();
       util.onReschedule(function () {
         refresh();
+        if (mapOpen) {
+          armRadarRefresh();
+        }
       });
     };
 
@@ -1151,6 +1668,7 @@
 
   exports.nwsUrls = nwsUrls;
   exports.openMeteoUrl = openMeteoUrl;
+  exports.radarMapUrl = radarMapUrl;
 
   if (typeof window !== 'undefined') {
     attachBrowserApi();

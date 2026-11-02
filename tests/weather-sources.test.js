@@ -7,6 +7,14 @@ const cfg = {
   timezone: 'America/New_York'
 };
 
+test('builds a radar map centered on the configured location', function () {
+  var url = weather.radarMapUrl(cfg);
+  assert.equal(url.indexOf('https://mesonet.agron.iastate.edu/GIS/radmap.php?') === 0, true);
+  assert.equal(url.indexOf('bbox=-88.38,38.44,-83.58,41.34') !== -1, true);
+  assert.equal(url.indexOf('layers[]=nexrad') !== -1, true);
+  assert.equal(url.indexOf('layers[]=uscounties') !== -1, true);
+});
+
 test('points and sun URLs match the weather app', function () {
   assert.equal(weather.pointsUrl(cfg), 'https://api.weather.gov/points/39.8947,-85.9786');
   assert.equal(

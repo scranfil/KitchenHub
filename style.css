@@ -126,8 +126,71 @@ body {
   color: var(--muted);
 }
 
-.current {
+.hero-clock {
+  align-self: stretch;
+  position: relative;
+  min-width: 0;
   min-height: 0;
+  display: flex;
+  align-items: center;
+}
+
+.scores {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.6vh;
+  margin: 0;
+  font-size: 3.2vh;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scores[hidden] {
+  display: none;
+}
+
+.current {
+  position: relative;
+  min-height: 0;
+  padding-right: 8vh;
+}
+
+.map-open {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  width: 6.4vh;
+  height: 6.4vh;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: inherit;
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.map-open:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 0.3vh;
+}
+
+.map-open:active {
+  opacity: 0.72;
+}
+
+.map-icon {
+  display: block;
+  width: 3.6vh;
+  height: 3.6vh;
+  margin: 0 auto;
 }
 
 .current-row {
@@ -231,6 +294,26 @@ body {
   text-align: center;
 }
 
+button.day-card {
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  padding: 0.3vh 0.2vw;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+button.day-card:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 0.3vh;
+}
+
+button.day-card:active {
+  opacity: 0.72;
+}
+
 .hour-label,
 .day-name {
   font-size: 2.2vh;
@@ -264,7 +347,9 @@ body {
 }
 
 .news-hit,
-.news-close {
+.news-close,
+.day-close,
+.map-close {
   font-family: inherit;
   color: inherit;
   cursor: pointer;
@@ -328,7 +413,8 @@ body {
   background: var(--fg);
 }
 
-.news-modal {
+.news-modal,
+.day-modal {
   position: fixed;
   left: 0;
   right: 0;
@@ -341,11 +427,13 @@ body {
   padding: 3vh 3vw;
 }
 
-.news-modal[hidden] {
+.news-modal[hidden],
+.day-modal[hidden] {
   display: none;
 }
 
-.news-modal-backdrop {
+.news-modal-backdrop,
+.day-modal-backdrop {
   position: absolute;
   left: 0;
   right: 0;
@@ -354,7 +442,8 @@ body {
   background: rgba(0, 0, 0, 0.62);
 }
 
-.news-modal-card {
+.news-modal-card,
+.day-modal-card {
   position: relative;
   z-index: 1;
   box-sizing: border-box;
@@ -370,7 +459,8 @@ body {
   box-shadow: 0 1.2vh 4vh rgba(0, 0, 0, 0.35);
 }
 
-.news-modal-scroll {
+.news-modal-scroll,
+.day-modal-scroll {
   box-sizing: border-box;
   flex: 1 1 auto;
   min-height: 0;
@@ -383,7 +473,9 @@ body {
   padding: 2.2vh 2vw 3vh;
 }
 
-.news-close {
+.news-close,
+.day-close,
+.map-close {
   position: absolute;
   top: 1.2vh;
   right: 1.2vw;
@@ -430,8 +522,132 @@ body {
   line-height: 1.4;
 }
 
-.news-detail-body p {
+.news-detail-body p,
+.day-detail-body p {
   margin: 0 0 1.4vh;
+}
+
+.day-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 2vw;
+  margin-right: 7vh;
+}
+
+.day-detail-icon .wx-icon {
+  width: 8vh;
+  height: 8vh;
+}
+
+.day-detail-title {
+  margin: 0;
+  font-size: 4.4vh;
+  font-weight: 650;
+  line-height: 1.1;
+}
+
+.day-detail-cond {
+  margin-top: 0.4vh;
+  font-size: 3vh;
+}
+
+.day-detail-hilo {
+  margin-top: 1.4vh;
+  font-size: 5vh;
+  font-weight: 650;
+}
+
+.day-detail-facts {
+  margin-top: 0.8vh;
+  font-size: 2.6vh;
+  color: var(--muted);
+}
+
+.day-detail-body {
+  margin-top: 1.6vh;
+  font-size: 3vh;
+  line-height: 1.4;
+}
+
+.day-detail-night {
+  margin-top: 2.2vh;
+  padding-top: 1.6vh;
+  border-top: 1px solid var(--line);
+}
+
+.day-detail-kicker {
+  font-size: 2vh;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.map-modal .day-modal-card,
+.map-modal-card {
+  width: 96vw;
+  max-width: 1400px;
+  background: #111;
+  color: #f3efe6;
+}
+
+.map-title {
+  display: flex;
+  align-items: center;
+  min-height: 6vh;
+  margin: 0 8vh 1.6vh 0;
+  font-size: 3.4vh;
+  font-weight: 650;
+  line-height: 1.1;
+}
+
+.map-close {
+  width: 5vh;
+  height: 5vh;
+  font-size: 3.2vh;
+}
+
+.radar-frame {
+  position: relative;
+  display: table;
+  margin: 0 auto;
+}
+
+.radar-frame[hidden] {
+  display: none;
+}
+
+.radar-img {
+  display: block;
+  max-width: 100%;
+  max-height: 64vh;
+  width: auto;
+  height: auto;
+  background: #2a2a2a;
+}
+
+.radar-home {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1.5vh;
+  height: 1.5vh;
+  margin-left: -0.75vh;
+  margin-top: -0.75vh;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 0.35vh #111, 0 0 0 0.6vh #fff;
+}
+
+.radar-caption,
+.radar-status {
+  margin: 1.2vh 0 0;
+  font-size: 2.4vh;
+  color: #d0d0d0;
+}
+
+.radar-status {
+  font-size: 3vh;
 }
 
 .placeholder-copy {

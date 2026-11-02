@@ -20,6 +20,49 @@ test('pairs day and night forecast periods into 5 cards', function () {
   assert.equal(cards[2].precip, 10);
 });
 
+test('keeps day and night details for the forecast modal', function () {
+  var cards = weather.pairForecastPeriods([
+    {
+      name: 'Thursday',
+      isDaytime: true,
+      temperature: 71,
+      probabilityOfPrecipitation: { value: 5 },
+      shortForecast: 'Sunny',
+      detailedForecast: 'Sunny, with a high near 71.',
+      windSpeed: '5 to 10 mph',
+      windDirection: 'SW',
+      relativeHumidity: { value: 40 }
+    },
+    {
+      name: 'Thursday Night',
+      isDaytime: false,
+      temperature: 45,
+      probabilityOfPrecipitation: { value: 20 },
+      shortForecast: 'Mostly Clear',
+      detailedForecast: 'Mostly clear, with a low around 45.',
+      windSpeed: '3 mph',
+      windDirection: 'N',
+      relativeHumidity: { value: 70 }
+    }
+  ]);
+  assert.equal(cards.length, 1);
+  assert.equal(cards[0].name, 'Thursday');
+  assert.equal(cards[0].high, 71);
+  assert.equal(cards[0].low, 45);
+  assert.equal(cards[0].precip, 20);
+  assert.equal(cards[0].dayPrecip, 5);
+  assert.equal(cards[0].detailedForecast, 'Sunny, with a high near 71.');
+  assert.equal(cards[0].windSpeed, '5 to 10 mph');
+  assert.equal(cards[0].windDirection, 'SW');
+  assert.equal(cards[0].humidity, 40);
+  assert.equal(cards[0].night.name, 'Thursday Night');
+  assert.equal(cards[0].night.precip, 20);
+  assert.equal(cards[0].night.shortForecast, 'Mostly Clear');
+  assert.equal(cards[0].night.detailedForecast, 'Mostly clear, with a low around 45.');
+  assert.equal(cards[0].night.windDirection, 'N');
+  assert.equal(cards[0].night.humidity, 70);
+});
+
 test('uses Tonight as today when the day period has passed', function () {
   var periods = forecast.properties.periods.slice(1);
   var cards = weather.pairForecastPeriods(periods);
@@ -47,6 +90,8 @@ test('maps Open-Meteo current, hourly, daily, and sunrise', function () {
   assert.equal(mapped.current.feelsLike, 56.5);
   assert.equal(mapped.hourly.length > 0, true);
   assert.equal(mapped.daily.length, 5);
+  assert.equal(mapped.daily[0].sunriseLabel, '8:00 AM');
+  assert.equal(mapped.daily[0].sunsetLabel, '6:55 PM');
   assert.equal(mapped.sun.sunriseLabel, '8:00 AM');
   assert.equal(mapped.sun.sunsetLabel, '6:55 PM');
 });

@@ -1,0 +1,100 @@
+{
+  "boards": [
+    {
+      "league": "nfl",
+      "events": [
+        {
+          "id": "401873014",
+          "date": "2026-10-25T17:00Z",
+          "name": "Indianapolis Colts at Minnesota Vikings",
+          "shortName": "IND @ MIN",
+          "competitions": [
+            {
+              "competitors": [
+                {
+                  "homeAway": "home",
+                  "score": "0",
+                  "team": { "id": "16", "abbreviation": "MIN", "shortDisplayName": "Vikings", "displayName": "Minnesota Vikings" }
+                },
+                {
+                  "homeAway": "away",
+                  "score": "0",
+                  "team": { "id": "11", "abbreviation": "IND", "shortDisplayName": "Colts", "displayName": "Indianapolis Colts" }
+                }
+              ],
+              "status": {
+                "type": {
+                  "state": "pre",
+                  "name": "STATUS_SCHEDULED",
+                  "detail": "Sun, October 25th at 1:00 PM EDT",
+                  "shortDetail": "10/25 - 1:00 PM EDT"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "401873099",
+          "date": "2026-10-26T00:20Z",
+          "name": "Dallas Cowboys at Denver Broncos",
+          "competitions": [
+            {
+              "competitors": [
+                {
+                  "homeAway": "home",
+                  "score": "0",
+                  "team": { "id": "9", "abbreviation": "DEN", "shortDisplayName": "Broncos" }
+                },
+                {
+                  "homeAway": "away",
+                  "score": "0",
+                  "team": { "id": "6", "abbreviation": "DAL", "shortDisplayName": "Cowboys" }
+                }
+              ],
+              "status": { "type": { "state": "pre", "shortDetail": "8:20 PM EDT" } }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "league": "nba",
+      "events": [
+        {
+          "id": "401909862",
+          "date": "2026-10-25T22:00Z",
+          "name": "Indiana Pacers at Brooklyn Nets",
+          "shortName": "IND @ BKN",
+          "competitions": [
+            {
+              "competitors": [
+                {
+                  "homeAway": "home",
+                  "score": "0",
+                  "team": { "id": "17", "abbreviation": "BKN", "shortDisplayName": "Nets", "displayName": "Brooklyn Nets" }
+                },
+                {
+                  "homeAway": "away",
+                  "score": "0",
+                  "team": { "id": "11", "abbreviation": "IND", "shortDisplayName": "Pacers", "displayName": "Indiana Pacers" }
+                }
+              ],
+              "status": {
+                "type": {
+                  "state": "pre",
+                  "name": "STATUS_SCHEDULED",
+                  "detail": "Sun, October 25th at 6:00 PM EDT",
+                  "shortDetail": "10/25 - 6:00 PM EDT"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "league": "wnba",
+      "events": []
+    }
+  ]
+}

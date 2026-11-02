@@ -49,6 +49,9 @@
       }
       bits.push(weatherBit);
       bits.push('News ' + labelFor('news', util.cfg.refreshMinutes.news));
+      if (KH.scores && KH.scores.hasGame && KH.scores.hasGame()) {
+        bits.push('Scores ' + labelFor('scores', util.cfg.refreshMinutes.scores || 5));
+      }
       util.setText(util.$('status-times'), bits.join(' · '));
 
       var pill = util.$('offline-pill');
@@ -100,7 +103,7 @@
     for (i = 0; i < names.length; i++) {
       lines.push('timer ' + names[i] + ': ' + (util.timers[names[i]] ? 'armed' : 'idle'));
     }
-    var panels = ['weather', 'alerts', 'sun', 'news'];
+    var panels = ['weather', 'alerts', 'sun', 'news', 'scores'];
     for (i = 0; i < panels.length; i++) {
       var c = util.cacheGet(panels[i]);
       if (c) {
@@ -115,9 +118,9 @@
     el.textContent = lines.join(' · ');
   }
 
-  function isNewsTarget(node) {
+  function skipsRefresh(node) {
     while (node) {
-      if (node.id === 'news' || node.id === 'news-detail') {
+      if (node.id === 'news' || node.id === 'news-detail' || node.id === 'daily' || node.id === 'day-detail' || node.id === 'map-detail') {
         return true;
       }
       node = node.parentNode;
@@ -126,7 +129,7 @@
   }
 
   function onTap(ev) {
-    if (isNewsTarget(ev && ev.target)) {
+    if (skipsRefresh(ev && ev.target)) {
       return;
     }
     var t = Date.now();
@@ -140,6 +143,9 @@
     if (KH.alerts && KH.alerts.refresh) {
       KH.alerts.refresh();
     }
+    if (KH.scores && KH.scores.refresh) {
+      KH.scores.refresh();
+    }
   }
 
   function onOnline() {
@@ -152,6 +158,9 @@
     }
     if (KH.news && KH.news.refresh) {
       KH.news.refresh();
+    }
+    if (KH.scores && KH.scores.refresh) {
+      KH.scores.refresh();
     }
   }
 
@@ -167,6 +176,9 @@
     }
     if (KH.news && KH.news.init) {
       KH.news.init();
+    }
+    if (KH.scores && KH.scores.init) {
+      KH.scores.init();
     }
     if (KH.presence && KH.presence.init) {
       KH.presence.init();

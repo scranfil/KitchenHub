@@ -1,6 +1,6 @@
 'use strict';
 
-var CACHE = 'kh-shell-4';
+var CACHE = 'kh-shell-6';
 var SHELL = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ var SHELL = [
   './js/weather.js',
   './js/alerts.js',
   './js/news.js',
+  './js/scores.js',
   './js/presence.js',
   './js/app.js',
   './icons/icon-192.png',
