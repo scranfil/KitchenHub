@@ -190,7 +190,9 @@
 
     util.onReschedule(function () {
       renderClock();
+      armDailyReload();
     });
+    armDailyReload();
 
     util.schedule('status', function tickStatus() {
       renderStatus();
@@ -198,6 +200,23 @@
     }, 30000);
 
     registerApp();
+  }
+
+  function armDailyReload() {
+    var cap = 26 * 60 * 60 * 1000;
+    if (typeof performance !== 'undefined' && performance.now) {
+      cap -= performance.now();
+    }
+    if (cap < 60000) {
+      cap = 60000;
+    }
+    var delay = cap;
+    if (KH.presence && typeof KH.presence.msUntilReload === 'function') {
+      delay = KH.presence.msUntilReload(util.now(), util.cfg.dailyReload, util.timezone(), cap);
+    }
+    util.schedule('daily-reload', function () {
+      window.location.reload();
+    }, delay);
   }
 
   function registerApp() {

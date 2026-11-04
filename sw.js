@@ -1,6 +1,6 @@
 'use strict';
 
-var CACHE = 'kh-shell-7';
+var CACHE = 'kh-shell-8';
 var SHELL = [
   './',
   './index.html',

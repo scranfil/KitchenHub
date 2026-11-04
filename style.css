@@ -759,12 +759,13 @@ button.day-card:active {
   pointer-events: none;
 }
 
+/* 2px crashes this tablet's GPU compositor and leaves Chrome on Aw, Snap. */
 .presence-camera {
   position: fixed;
-  width: 2px;
-  height: 2px;
-  left: 0;
-  top: 0;
+  width: 64px;
+  height: 48px;
+  right: 0;
+  bottom: 0;
   opacity: 0.02;
   pointer-events: none;
   z-index: 0;

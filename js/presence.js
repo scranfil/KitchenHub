@@ -248,10 +248,37 @@
     return 'ok';
   }
 
+  var RELOAD_CAP_MS = 26 * 60 * 60 * 1000;
+
+  function msUntilReload(date, clockText, timeZone, capMs) {
+    var cap = Number(capMs);
+    if (isNaN(cap) || cap < 60000) {
+      cap = RELOAD_CAP_MS;
+    }
+    var target = parseClock(clockText);
+    var nowMin = clockMinutes(date, timeZone);
+    if (target == null || nowMin == null) {
+      return cap;
+    }
+    var delta = target - nowMin;
+    if (delta <= 0) {
+      delta += 1440;
+    }
+    var wait = delta * 60000;
+    if (wait < 60000) {
+      wait = 60000;
+    }
+    if (wait > cap) {
+      return cap;
+    }
+    return wait;
+  }
+
   exports.fullySettings = fullySettings;
   exports.createController = createController;
   exports.motionHit = motionHit;
   exports.cameraAction = cameraAction;
+  exports.msUntilReload = msUntilReload;
   exports.DEFAULT_IDLE_SECONDS = DEFAULT_IDLE_SECONDS;
 
   function attachBrowserApi() {
@@ -348,6 +375,8 @@
       var video = document.createElement('video');
       video.setAttribute('playsinline', '');
       video.setAttribute('muted', '');
+      video.setAttribute('width', '64');
+      video.setAttribute('height', '48');
       video.muted = true;
       video.autoplay = true;
       video.className = 'presence-camera';
@@ -474,12 +503,23 @@
       if (!navigator.wakeLock || typeof navigator.wakeLock.request !== 'function') {
         return;
       }
+      var held = null;
       function request() {
+        if (held) {
+          return;
+        }
         if (document.visibilityState && document.visibilityState !== 'visible') {
           return;
         }
-        navigator.wakeLock.request('screen').catch(function (err) {
+        navigator.wakeLock.request('screen').then(function (lock) {
+          held = lock;
+          lock.addEventListener('release', function () {
+            held = null;
+            setTimeout(request, 1000);
+          });
+        }, function (err) {
           console.error('[presence] wake lock', err);
+          setTimeout(request, 5000);
         });
       }
       request();
