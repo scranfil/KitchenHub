@@ -101,6 +101,17 @@ The refresh token has to include the Pub/Sub scope from the authorize URL above,
 
 Until the subscription is filled in, the doorbell still shows online or offline and says that rings need Pub/Sub.
 
+### SmartThings hub
+
+The SmartThings cloud API allows this page to call it directly, so a personal access token is enough. No home server is required for the hub.
+
+1. Open [SmartThings tokens](https://account.smartthings.com/tokens) and create a token that can read devices, read locations, and control devices.
+2. On the lights tile, paste it and tap **Save**, or put it in `smartthings.token` in `config.local.js`. The token stays on the tablet or in that gitignored file.
+3. Hue bulbs that are already connected to the hub show up as the light list, with the same on/off and brightness controls. The hub sends the commands.
+4. A lock whose name contains "front" (or the only lock in the home) is the front door. While it is unlocked, the doorbell tile turns red and says the door is unlocked. `smartthings.lockName` changes the match if the lock is named something else.
+
+`?unlocked=1` previews the red tile without a hub.
+
 ### Hue
 
 1. The tablet and the bridge need to be on the same Wi-Fi.

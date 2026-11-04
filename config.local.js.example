@@ -20,4 +20,8 @@
     bridgeIp: '',
     appKey: ''
   };
+  cfg.smartthings = {
+    token: '',
+    lockName: 'front'
+  };
 })();

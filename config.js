@@ -27,6 +27,10 @@ window.KH_CONFIG = {
     bridgeIp: "",
     appKey: ""
   },
+  smartthings: {
+    token: "",
+    lockName: "front"
+  },
   scores: {
     enabled: true,
     rotateSeconds: 12,

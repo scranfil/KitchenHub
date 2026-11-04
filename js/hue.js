@@ -258,6 +258,11 @@
       return !!(util.query && util.query.sample);
     }
 
+    function useHub() {
+      var hub = window.KH && window.KH.smartthings;
+      return !!(hub && hub.configured && hub.configured());
+    }
+
     function resolveSecrets() {
       var cfg = cfgHue();
       bridgeIp = trim(cfg.bridgeIp) || trim(readItem(STORE_IP));
@@ -367,6 +372,23 @@
           renderRooms(root);
           return;
         }
+        if (useHub()) {
+          if (!rooms.length && !warning) {
+            root.appendChild(el('p', 'tile-help', 'Loading lights from SmartThings\u2026'));
+          } else if (!rooms.length) {
+            root.appendChild(el('p', 'tile-help', warning));
+            var forget = el('button', 'tile-action tile-action-quiet', 'Forget hub');
+            forget.type = 'button';
+            forget.setAttribute('data-st-forget', '1');
+            root.appendChild(forget);
+          } else {
+            renderRooms(root);
+            if (warning) {
+              root.appendChild(el('p', 'tile-help', warning));
+            }
+          }
+          return;
+        }
         if (!appKey) {
           renderSetup(root);
           return;
@@ -465,6 +487,20 @@
       root.appendChild(form);
       if (!compact) {
         root.appendChild(el('p', 'tile-help', 'Same Wi-Fi as the bridge. Press the link button, then Pair. See the README.'));
+        root.appendChild(el('p', 'tile-help', 'Or save a SmartThings token. The hub can run these lights and turn the doorbell tile red when the front door is unlocked.'));
+        var tokenRow = el('div', 'hue-setup-row');
+        var tokenInput = document.createElement('input');
+        tokenInput.className = 'setup-input st-token';
+        tokenInput.type = 'password';
+        tokenInput.autocomplete = 'off';
+        tokenInput.placeholder = 'SmartThings token';
+        tokenInput.setAttribute('aria-label', 'SmartThings token');
+        var save = el('button', 'tile-action', 'Save');
+        save.type = 'button';
+        save.setAttribute('data-st-save', '1');
+        tokenRow.appendChild(tokenInput);
+        tokenRow.appendChild(save);
+        root.appendChild(tokenRow);
       }
     }
 
@@ -653,7 +689,7 @@
     }
 
     function schedule(fails) {
-      if (!appKey) {
+      if (!appKey || useHub()) {
         return;
       }
       var minutes = (util.cfg.refreshMinutes && util.cfg.refreshMinutes.hue) || 1;
@@ -677,6 +713,15 @@
 
     function sendState(id, body) {
       if (sampleOn()) {
+        return;
+      }
+      var light = findLight(id);
+      if (light && light.via === 'smartthings' && window.KH && window.KH.smartthings && window.KH.smartthings.setLight) {
+        window.KH.smartthings.setLight(id, body.on, light.percent).catch(function (err) {
+          console.error('[hue]', err && err.status ? err.status : err);
+          warning = "The hub didn't change that light.";
+          render();
+        });
         return;
       }
       var key = encodeURIComponent(appKey);
@@ -739,6 +784,26 @@
     function onClick(ev) {
       var node = ev.target;
       if (!node || !node.getAttribute) {
+        return;
+      }
+      if (node.getAttribute('data-st-save')) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        var input = document.querySelector('.st-token');
+        if (window.KH && window.KH.smartthings && input) {
+          window.KH.smartthings.saveToken(input.value);
+        }
+        return;
+      }
+      if (node.getAttribute('data-st-forget')) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (window.KH && window.KH.smartthings) {
+          window.KH.smartthings.forgetToken();
+        }
+        warning = '';
+        rooms = [];
+        render();
         return;
       }
       if (node.getAttribute('data-hue-find')) {
@@ -810,6 +875,10 @@
         render();
         return;
       }
+      if (useHub()) {
+        render();
+        return;
+      }
       resolveSecrets();
       var cached = util.cacheGet('hue');
       if (appKey && cached && cached.data) {
@@ -828,9 +897,28 @@
       });
     };
 
+    exports.applyHubRooms = function (next, errMsg) {
+      if (sampleOn()) {
+        return;
+      }
+      if (errMsg) {
+        warning = errMsg;
+      } else {
+        warning = '';
+        rooms = next || [];
+      }
+      render();
+    };
+
     exports.refresh = function () {
       if (sampleOn()) {
         render();
+        return;
+      }
+      if (useHub()) {
+        if (window.KH && window.KH.smartthings && window.KH.smartthings.refresh) {
+          window.KH.smartthings.refresh();
+        }
         return;
       }
       if (appKey && bridgeIp) {

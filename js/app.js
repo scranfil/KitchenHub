@@ -168,6 +168,9 @@
     if (KH.hue && KH.hue.refresh) {
       KH.hue.refresh();
     }
+    if (KH.smartthings && KH.smartthings.refresh) {
+      KH.smartthings.refresh();
+    }
   }
 
   function boot() {
@@ -191,6 +194,9 @@
     }
     if (KH.hue && KH.hue.init) {
       KH.hue.init();
+    }
+    if (KH.smartthings && KH.smartthings.init) {
+      KH.smartthings.init();
     }
     if (KH.presence && KH.presence.init) {
       KH.presence.init();

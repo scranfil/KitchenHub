@@ -952,10 +952,45 @@ body:not(.presence-device)::after {
   font-weight: 650;
 }
 
+.home-tile.is-unlocked {
+  background: #9b1b1b;
+  color: #fff7f4;
+}
+
+.home-tile.is-unlocked .panel-kicker,
+.home-tile.is-unlocked .tile-help,
+.home-tile.is-unlocked .tile-meta,
+.home-tile.is-unlocked .tile-name,
+.home-tile.is-unlocked .tile-ok,
+.home-tile.is-unlocked .tile-bad,
+.home-tile.is-unlocked .tile-status,
+.home-tile.is-unlocked .tile-lock,
+.home-tile.is-unlocked .door-empty {
+  color: #fff7f4;
+}
+
+.home-tile.is-unlocked .tile-action,
+.home-tile.is-unlocked .set-btn {
+  background: #9b1b1b;
+  color: #fff7f4;
+  border-color: #fff7f4;
+}
+
+.home-tile.is-unlocked .door-shot,
+.home-tile.is-unlocked .door-empty {
+  background: #7a1515;
+}
+
+.tile-lock {
+  margin-top: 0.4vh;
+  font-size: 2.4vh;
+  font-weight: 700;
+}
+
 .door-shot {
   display: block;
   width: 100%;
-  height: 11vh;
+  height: 9vh;
   margin-top: 0.6vh;
   object-fit: cover;
   background: #d7d0c4;
@@ -976,7 +1011,7 @@ body:not(.presence-device)::after {
 .door-svg {
   display: block;
   width: 100%;
-  height: 11vh;
+  height: 9vh;
 }
 
 .hue-room {

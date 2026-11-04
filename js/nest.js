@@ -854,6 +854,35 @@
       }
     }
 
+    function lockNow() {
+      if (util.query && util.query.unlocked) {
+        return { name: 'Front door', unlocked: true, known: true, label: 'Unlocked' };
+      }
+      if (sampleOn()) {
+        return { name: 'Front door', unlocked: false, known: true, label: 'Locked' };
+      }
+      var hub = window.KH && window.KH.smartthings;
+      if (hub && hub.currentLock) {
+        return hub.currentLock();
+      }
+      return null;
+    }
+
+    function paintLock(root) {
+      var state = lockNow();
+      if (!state || !state.known) {
+        root.classList.remove('is-unlocked');
+        return;
+      }
+      if (state.unlocked) {
+        root.classList.add('is-unlocked');
+      } else {
+        root.classList.remove('is-unlocked');
+      }
+      var label = (state.name || 'Front door') + (state.unlocked ? ' unlocked' : ' locked');
+      root.appendChild(el('div', 'tile-lock', label));
+    }
+
     function render() {
       util.safeRender('nest', function () {
         var door = util.$('nest-doorbell');
@@ -865,6 +894,7 @@
           } else {
             fillDoorbell(door);
           }
+          paintLock(door);
         }
         if (thermo) {
           if (!sampleOn() && !nestConfigured(cfg)) {
@@ -1394,6 +1424,8 @@
         closeSetup();
       }
     }
+
+    exports.repaint = render;
 
     exports.init = function () {
       if (!bound) {
