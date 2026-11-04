@@ -1,6 +1,7 @@
 # Secrets. Copy config.local.js.example and fill it in on the machine
 # that serves the page. Never commit tokens, client secrets, or app keys.
 config.local.js
+smartthings.oauth.json
 .env
 .env.*
 !.env.example

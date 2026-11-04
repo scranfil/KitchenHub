@@ -486,21 +486,30 @@
       form.appendChild(pair);
       root.appendChild(form);
       if (!compact) {
-        root.appendChild(el('p', 'tile-help', 'Same Wi-Fi as the bridge. Press the link button, then Pair. See the README.'));
-        root.appendChild(el('p', 'tile-help', 'Or save a SmartThings token. The hub can run these lights and turn the doorbell tile red when the front door is unlocked.'));
+        var hub = window.KH && window.KH.smartthings;
+        if (hub && hub.helperAvailable && hub.helperAvailable()) {
+          var link = el('a', 'tile-action', 'Connect SmartThings');
+          link.href = 'smartthings/connect';
+          root.appendChild(link);
+          root.appendChild(el('p', 'tile-help', 'One-time login on this server. It renews itself.'));
+        } else {
+          root.appendChild(el('p', 'tile-help', 'A lasting SmartThings login needs the home server. See the README.'));
+        }
+        root.appendChild(el('p', 'tile-help', 'Or paste a personal token. It expires in 24 hours.'));
         var tokenRow = el('div', 'hue-setup-row');
         var tokenInput = document.createElement('input');
         tokenInput.className = 'setup-input st-token';
         tokenInput.type = 'password';
         tokenInput.autocomplete = 'off';
-        tokenInput.placeholder = 'SmartThings token';
-        tokenInput.setAttribute('aria-label', 'SmartThings token');
+        tokenInput.placeholder = '24-hour token';
+        tokenInput.setAttribute('aria-label', '24-hour SmartThings token');
         var save = el('button', 'tile-action', 'Save');
         save.type = 'button';
         save.setAttribute('data-st-save', '1');
         tokenRow.appendChild(tokenInput);
         tokenRow.appendChild(save);
         root.appendChild(tokenRow);
+        root.appendChild(el('p', 'tile-help', 'Same Wi-Fi as the bridge. Press the link button, then Pair. See the README.'));
       }
     }
 
@@ -896,6 +905,8 @@
         }
       });
     };
+
+    exports.repaint = render;
 
     exports.applyHubRooms = function (next, errMsg) {
       if (sampleOn()) {

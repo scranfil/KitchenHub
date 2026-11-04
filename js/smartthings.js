@@ -187,6 +187,54 @@
     return commands;
   }
 
+  function integrationText(device) {
+    return [
+      device && device.manufacturerName,
+      device && device.name,
+      device && device.deviceManufacturerCode,
+      device && device.type,
+      device && device.presentationId
+    ].join(' ').toLowerCase();
+  }
+
+  function hueRank(device) {
+    var text = integrationText(device);
+    var rank = 0;
+    if (text.indexOf('hue') !== -1) {
+      rank += 4;
+    }
+    if (text.indexOf('philips') !== -1 || text.indexOf('signify') !== -1) {
+      rank += 2;
+    }
+    return rank;
+  }
+
+  function dedupeHubDevices(devices) {
+    var best = {};
+    var order = [];
+    var list = devices || [];
+    var i;
+    for (i = 0; i < list.length; i++) {
+      var key = deviceName(list[i]).toLowerCase();
+      if (!key) {
+        key = String(list[i] && list[i].deviceId || i);
+      }
+      if (!best[key]) {
+        best[key] = list[i];
+        order.push(key);
+        continue;
+      }
+      if (hueRank(list[i]) > hueRank(best[key])) {
+        best[key] = list[i];
+      }
+    }
+    var out = [];
+    for (i = 0; i < order.length; i++) {
+      out.push(best[order[i]]);
+    }
+    return out;
+  }
+
   function configured(token) {
     return !!trim(token);
   }
@@ -200,6 +248,8 @@
   exports.lightReading = lightReading;
   exports.groupHubLights = groupHubLights;
   exports.lightCommands = lightCommands;
+  exports.dedupeHubDevices = dedupeHubDevices;
+  exports.hueRank = hueRank;
   exports.configured = configured;
 
   function attachBrowserApi() {
@@ -207,6 +257,8 @@
     var util = KH.util;
     var lock = null;
     var fails = 0;
+    var helperSeen = false;
+    var helperConnected = false;
 
     function elToken() {
       return document.querySelector('.st-token');
@@ -244,14 +296,25 @@
       var timer = setTimeout(function () {
         controller.abort();
       }, options.timeout || 15000);
-      var headers = {
-        Authorization: 'Bearer ' + token(),
-        Accept: 'application/json'
-      };
+      var headers = { Accept: 'application/json' };
+      var target = path;
+      if (helperConnected) {
+        if (path.indexOf('http') === 0) {
+          var at = path.indexOf('/v1/');
+          target = at === -1 ? path : 'smartthings/api/' + path.slice(at + 4);
+        } else {
+          target = 'smartthings/api' + path;
+        }
+      } else {
+        headers.Authorization = 'Bearer ' + token();
+        if (path.indexOf('http') !== 0) {
+          target = API + path;
+        }
+      }
       if (options.body != null) {
         headers['Content-Type'] = 'application/json';
       }
-      return fetch(path.indexOf('http') === 0 ? path : API + path, {
+      return fetch(target, {
         method: options.method || 'GET',
         headers: headers,
         body: options.body == null ? undefined : options.body,
@@ -285,7 +348,7 @@
         var items = data && data.items ? data.items : [];
         var next = (acc || []).concat(items);
         var link = data && data._links && data._links.next && data._links.next.href;
-        if (link && next.length < 80) {
+        if (link && next.length < 200) {
           return follow(link, next);
         }
         return next;
@@ -341,8 +404,33 @@
       return "Can't reach SmartThings.";
     }
 
+    function probe() {
+      return fetch('smartthings/status', { cache: 'no-store' }).then(function (res) {
+        var type = (res.headers.get('content-type') || '').toLowerCase();
+        if (!res.ok || type.indexOf('json') === -1) {
+          helperSeen = false;
+          helperConnected = false;
+          return null;
+        }
+        return res.json();
+      }).then(function (data) {
+        if (!data || typeof data.connected !== 'boolean') {
+          helperSeen = false;
+          helperConnected = false;
+          return null;
+        }
+        helperSeen = true;
+        helperConnected = !!data.connected;
+        return data;
+      }).catch(function () {
+        helperSeen = false;
+        helperConnected = false;
+        return null;
+      });
+    }
+
     function refresh() {
-      if (sampleOn() || !configured(token())) {
+      if (sampleOn() || (!helperConnected && !configured(token()))) {
         return;
       }
       var rooms = [];
@@ -376,6 +464,7 @@
             lights.push(devices[i]);
           }
         }
+        lights = dedupeHubDevices(lights);
         var readings = [];
         var tasks = [];
         if (door) {
@@ -430,7 +519,11 @@
     }
 
     exports.configured = function () {
-      return configured(token());
+      return helperConnected || configured(token());
+    };
+
+    exports.helperAvailable = function () {
+      return helperSeen;
     };
 
     exports.currentLock = function () {
@@ -457,6 +550,10 @@
       } catch (err) {
         console.error('[smartthings]', err);
       }
+      if (helperConnected) {
+        refresh();
+        return;
+      }
       lock = null;
       tellHue(null, '');
       tellDoor();
@@ -469,10 +566,18 @@
     exports.refresh = refresh;
 
     exports.init = function () {
-      if (sampleOn() || !configured(token())) {
+      if (sampleOn()) {
         return;
       }
-      refresh();
+      probe().then(function () {
+        if (helperConnected || configured(token())) {
+          refresh();
+          return;
+        }
+        if (KH.hue && KH.hue.repaint) {
+          KH.hue.repaint();
+        }
+      });
     };
 
     KH.smartthings = exports;

@@ -1,6 +1,6 @@
 'use strict';
 
-var CACHE = 'kh-shell-9';
+var CACHE = 'kh-shell-10';
 var SHELL = [
   './',
   './index.html',
@@ -94,6 +94,7 @@ function networkFirst(request) {
 
 function leaveToNetwork(url) {
   return url.pathname.indexOf('/hue-proxy/') !== -1 ||
+    url.pathname.indexOf('/smartthings/') !== -1 ||
     url.pathname.slice(-14) === '/hue-discovery' ||
     url.pathname.slice(-16) === '/config.local.js';
 }

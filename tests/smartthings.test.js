@@ -20,6 +20,13 @@ const LOCK_STATUS = {
   }
 };
 
+test('no lock on the account leaves the door alone', function () {
+  assert.equal(st.pickFrontLock([], 'front'), null);
+  assert.equal(st.pickFrontLock([
+    device('Island', ['switch', 'switchLevel'], { deviceId: '1' })
+  ], 'front'), null);
+});
+
 test('front door lock is preferred over other locks', function () {
   var garage = device('Garage lock', ['lock', 'battery'], { deviceId: 'g' });
   var front = device('Front Door Lock', ['lock', 'battery'], { deviceId: 'f' });
@@ -63,6 +70,19 @@ test('hub lights group by room and ignore the lock', function () {
   assert.equal(rooms[0].lights[0].via, 'smartthings');
   assert.equal(rooms[1].lights[0].name, 'Lamp');
   assert.equal(rooms[1].lights[0].on, false);
+});
+
+test('duplicate Hue labels keep the Hue integration device', function () {
+  var cloud = device('Island', ['switch', 'switchLevel'], { deviceId: 'cloud' });
+  cloud.manufacturerName = 'SmartThings';
+  cloud.name = 'Generic bulb';
+  var hue = device('Island', ['switch', 'switchLevel', 'colorControl'], { deviceId: 'hue' });
+  hue.manufacturerName = 'Philips';
+  hue.name = 'Hue color lamp 1';
+  var kept = st.dedupeHubDevices([cloud, hue]);
+  assert.equal(kept.length, 1);
+  assert.equal(kept[0].deviceId, 'hue');
+  assert.equal(st.hueRank(hue) > st.hueRank(cloud), true);
 });
 
 test('brightness commands turn a hub light on and set the level', function () {

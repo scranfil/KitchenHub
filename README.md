@@ -103,12 +103,42 @@ Until the subscription is filled in, the doorbell still shows online or offline 
 
 ### SmartThings hub
 
-The SmartThings cloud API allows this page to call it directly, so a personal access token is enough. No home server is required for the hub.
+Personal tokens from [account.smartthings.com/tokens](https://account.smartthings.com/tokens) expire after 24 hours. The lasting login is an OAuth-In app. The home server keeps the client secret and refresh token in gitignored `smartthings.oauth.json`, refreshes the access token before it expires, and proxies SmartThings so the tablet never sees those secrets.
 
-1. Open [SmartThings tokens](https://account.smartthings.com/tokens) and create a token that can read devices, read locations, and control devices.
-2. On the lights tile, paste it and tap **Save**, or put it in `smartthings.token` in `config.local.js`. The token stays on the tablet or in that gitignored file.
-3. Hue bulbs that are already connected to the hub show up as the light list, with the same on/off and brightness controls. The hub sends the commands.
-4. A lock whose name contains "front" (or the only lock in the home) is the front door. While it is unlocked, the doorbell tile turns red and says the door is unlocked. `smartthings.lockName` changes the match if the lock is named something else.
+Run the server on a computer that stays on the home network, and point Fully at it:
+
+```
+node tools/kitchen-server.js
+```
+
+Fully start URL: `http://<that-computer>:8080`.
+
+Create the app once, on that computer:
+
+1. Install the CLI and sign in (a browser window opens):
+
+   ```
+   npm install -g @smartthings/cli
+   smartthings login
+   smartthings apps:create
+   ```
+
+   If that command is missing, run `smartthings smartapps:create` instead. It is the same step.
+2. Choose **OAuth-In App** (some CLI versions say **API Access Smart App**).
+3. Display name: `Kitchen Hub`. Description: anything short. Leave the icon blank.
+4. Target URL: leave it blank if the prompt allows. This dashboard does not receive webhooks.
+5. Scopes: `r:devices:*`, `x:devices:*`, and `r:locations:*`.
+6. Add this redirect URI exactly, then finish editing redirect URIs:
+
+   `http://127.0.0.1:8080/smartthings/callback`
+
+7. Choose **Finish and create**. Copy the **OAuth Client Id** and **OAuth Client Secret** immediately. SmartThings shows the secret only once. Do not commit them.
+8. On that same computer, open `http://127.0.0.1:8080/smartthings/connect`. Paste the client id and secret, then **Save and connect**. Approve Kitchen Hub in the SmartThings page that opens. The server stores the refresh token in `smartthings.oauth.json`.
+9. If you open the connect page from the tablet instead, register a second redirect URI for that host, for example `http://192.168.1.20:8080/smartthings/callback`, because SmartThings requires the redirect to match the address in the browser.
+
+The lights tile lists each Hue label once. When the same name appears twice, the Hue integration device is the one that stays. If the account has no lock, the doorbell tile stays as it is: no red background and no lock error. When a lock whose name contains "front" is unlocked, the doorbell tile turns red. `smartthings.lockName` changes that match.
+
+The lights tile still has a personal-token box labeled as expiring in 24 hours. That is only a fallback. The OAuth login above is the one that keeps working.
 
 `?unlocked=1` previews the red tile without a hub.
 

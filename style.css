@@ -925,6 +925,14 @@ body:not(.presence-device)::after {
   font-weight: 700;
 }
 
+a.tile-action {
+  display: inline-block;
+  box-sizing: border-box;
+  line-height: 4.4vh;
+  text-align: center;
+  text-decoration: none;
+}
+
 .tile-action-quiet {
   font-weight: 650;
 }
