@@ -1,6 +1,6 @@
 'use strict';
 
-var CACHE = 'kh-shell-7';
+var CACHE = 'kh-shell-8';
 var SHELL = [
   './',
   './index.html',
@@ -13,6 +13,8 @@ var SHELL = [
   './js/alerts.js',
   './js/news.js',
   './js/scores.js',
+  './js/nest.js',
+  './js/hue.js',
   './js/presence.js',
   './js/app.js',
   './icons/icon-192.png',
@@ -89,8 +91,18 @@ function networkFirst(request) {
   });
 }
 
+function leaveToNetwork(url) {
+  return url.pathname.indexOf('/hue-proxy/') !== -1 ||
+    url.pathname.slice(-14) === '/hue-discovery' ||
+    url.pathname.slice(-16) === '/config.local.js';
+}
+
 self.addEventListener('fetch', function (event) {
   if (event.request.method !== 'GET' || !sameOrigin(event.request)) {
+    return;
+  }
+  var url = new URL(event.request.url);
+  if (leaveToNetwork(url)) {
     return;
   }
   event.respondWith(networkFirst(event.request));

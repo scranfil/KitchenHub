@@ -1,0 +1,23 @@
+// Copy this file to config.local.js. That copy is gitignored.
+// Put the real Device Access ids and the Hue app key only in config.local.js
+// or in the tablet's Setup / Pair screens. Never commit them.
+(function () {
+  var cfg = window.KH_CONFIG;
+  if (!cfg) {
+    return;
+  }
+  cfg.nest = {
+    projectId: '',
+    clientId: '',
+    clientSecret: '',
+    refreshToken: '',
+    pubsubProjectId: '',
+    pubsubSubscription: '',
+    doorbellId: '',
+    thermostatId: ''
+  };
+  cfg.hue = {
+    bridgeIp: '',
+    appKey: ''
+  };
+})();

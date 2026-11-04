@@ -902,9 +902,11 @@
 
   function renderCurrent(util, model, meta) {
     var iconsApi = icons();
-    var el = util.$('current');
+    var el = util.$('current-body') || util.$('current');
+    if (!el) {
+      return;
+    }
     var html = '';
-    html += '<button type="button" class="map-open" aria-label="Weather map">' + MAP_ICON + '</button>';
     html += '<div class="current-row">';
     html += '<div class="current-icon">' + currentIcon(iconsApi, model.current) + '</div>';
     html += '<div class="current-temp" id="current-temp">' + fmtTemp(model.current.temperature) + 'F</div>';

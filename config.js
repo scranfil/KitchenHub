@@ -4,7 +4,7 @@ window.KH_CONFIG = {
   timezone: "America/New_York",
   units: "us",                       // °F, mph
   workerUrl: "https://kitchen-hub-proxy.SUBDOMAIN.workers.dev",
-  refreshMinutes: { observation: 15, hourly: 15, forecast: 30, alerts: 5, news: 15, calendar: 30, scores: 5 },
+  refreshMinutes: { observation: 15, hourly: 15, forecast: 30, alerts: 5, news: 15, calendar: 30, scores: 5, nest: 2, hue: 1 },
   clock: { showSeconds: false, hour12: true },
   news: {
     sources: ["ap-top", "reuters", "npr", "pbs", "bbc-us", "usa-today", "the-hill", "politico", "cbs", "nbc", "abc", "nyt", "cnn", "guardian-us", "wsj", "fox", "washington-examiner", "techcrunch", "the-verge", "ars", "wired", "espn-top", "espn-nfl", "espn-nba", "si", "cbs-sports", "variety", "hollywood-reporter", "rolling-stone", "ign"],
@@ -12,6 +12,21 @@ window.KH_CONFIG = {
     maxItems: 15
   },
   calendar: { enabled: true, days: 4, maxEvents: 12 },
+  // Real values belong in gitignored config.local.js or the tablet Setup / Pair screens.
+  nest: {
+    projectId: "",
+    clientId: "",
+    clientSecret: "",
+    refreshToken: "",
+    pubsubProjectId: "",
+    pubsubSubscription: "",
+    doorbellId: "",
+    thermostatId: ""
+  },
+  hue: {
+    bridgeIp: "",
+    appKey: ""
+  },
   scores: {
     enabled: true,
     rotateSeconds: 12,
