@@ -46,11 +46,11 @@ On this Windows/Node setup, `node --test tests/` is treated as a file path. Use 
 
 Weather-unit, NWS period pairing, WMO mapping, Nest and Hue parsers, and an ES2017/CSS static check (`npx acorn`).
 
-`?sample=1` fills the news list, doorbell, thermostat, and lights with sample data so the layout can be checked without accounts.
+`?sample=1` fills the news list, doors, thermostat, and lights with sample data so the layout can be checked without accounts. The sample front door is locked and the sample garage is closed.
 
 ## Nest and Hue
 
-The doorbell, thermostat, and lights sit in the row under the forecast. News opens from the icon just to the right of the weather map. With nothing filled in, each tile says **Not connected** and the page keeps running.
+The doors, thermostat, and lights sit in the row under the forecast. News opens from the icon just to the right of the weather map. With nothing filled in, each tile says **Not connected** and the page keeps running.
 
 Secrets stay off git. Copy `config.local.js.example` to `config.local.js` (that file is gitignored) or use the tablet buttons below. `config.local.js` wins when a value is set. The tablet's saved values are only in that browser.
 
@@ -83,7 +83,7 @@ Scott still needs to register. The console fee is $5, once.
 
    Put `refresh_token` in `nest.refreshToken`. The access token can be ignored; the page refreshes it.
 
-7. On the tablet, tap **Setup** on the doorbell or thermostat tile, paste the four values, and tap **Save on this tablet**. That store never leaves the tablet. Or put the same fields in `config.local.js` and open the page from a copy of this folder that contains that file. GitHub Pages only serves committed files, so it will not see `config.local.js`.
+7. On the tablet, tap **Setup** on the doors or thermostat tile, paste the four values, and tap **Save on this tablet**. That store never leaves the tablet. Or put the same fields in `config.local.js` and open the page from a copy of this folder that contains that file. GitHub Pages only serves committed files, so it will not see `config.local.js`.
 
 The tiles then show online or offline, indoor temperature, the heat/cool/off/eco setpoint, and whether the system is heating, cooling, or idle. **−** and **+** change the setpoint by 1°F when the mode is heat, cool, or heat/cool. Eco and off stay read-only.
 
@@ -136,11 +136,19 @@ Create the app once, on that computer:
 8. On that same computer, open `http://127.0.0.1:8080/smartthings/connect`. Paste the client id and secret, then **Save and connect**. Approve Kitchen Hub in the SmartThings page that opens. The server stores the refresh token in `smartthings.oauth.json`.
 9. If you open the connect page from the tablet instead, register a second redirect URI for that host, for example `http://192.168.1.20:8080/smartthings/callback`, because SmartThings requires the redirect to match the address in the browser.
 
-The lights tile lists each Hue label once. When the same name appears twice, the Hue integration device is the one that stays. If the account has no lock, the doorbell tile stays as it is: no red background and no lock error. When a lock whose name contains "front" is unlocked, the doorbell tile turns red. `smartthings.lockName` changes that match.
+The lights tile lists each Hue label once. When the same name appears twice, the Hue integration device is the one that stays. The front-door row uses the lock whose name contains `smartthings.lockName` (default `front`).
 
 The lights tile still has a personal-token box labeled as expiring in 24 hours. That is only a fallback. The OAuth login above is the one that keeps working.
 
-`?unlocked=1` previews the red tile without a hub.
+### Doors
+
+`config.doors` is the list on the doors tile. Each entry has a name, a kind (`lock` or `garage`), and a source, so a door can later use a different reader without changing the tile.
+
+The front door source is `smartthings`. It reuses the lock status above. Locked stays quiet. Unlocked turns that row red. The garage source is `homeassistant`. Set `entityId` (for example `cover.garage_door`) in `config.js` or `config.local.js`. Open turns that row red. Closed stays quiet.
+
+Copy `homeassistant.json.example` to `homeassistant.json` on the computer that runs `node tools/kitchen-server.js`. Put the Home Assistant base URL and a long-lived token in that file. It is gitignored. The page never sees the URL or the token; the tablet only asks the home server for the state. With no source, or when the state cannot be read, the row says **Not connected** or **Unknown**. It does not show a lock or garage control, and it does not guess locked or closed.
+
+Ring, motion, the snapshot, **Live view**, and **Setup** stay attached to the front door. `?unlocked=1` highlights the front door. `?garage=open` highlights the garage.
 
 ### Hue
 

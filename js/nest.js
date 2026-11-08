@@ -749,51 +749,99 @@
       }
     }
 
-    function fillDoorbell(root) {
+    function fillDoors(root) {
       util.emptyEl(root);
-      root.appendChild(el('div', 'panel-kicker', 'Doorbell'));
-      if (!doorbell) {
-        if (phase === 'ready') {
-          root.appendChild(el('div', 'tile-status', 'No doorbell'));
-          root.appendChild(el('p', 'tile-help', 'This Nest account has no doorbell.'));
-        } else if (phase === 'error') {
-          root.appendChild(el('div', 'tile-status', "Can't reach Nest"));
-          if (warning) {
-            root.appendChild(el('p', 'tile-help', warning));
-          }
-        } else {
-          root.appendChild(el('div', 'tile-status', 'Loading\u2026'));
+      root.classList.remove('is-unlocked');
+      root.setAttribute('aria-label', 'Doors');
+      root.appendChild(el('div', 'panel-kicker', 'Doors'));
+      var api = window.KH && window.KH.doors;
+      var list = api && api.doorList ? api.doorList(util.cfg) : [];
+      var i;
+      var cameraOn = false;
+      for (i = 0; i < list.length; i++) {
+        root.appendChild(doorRowEl(list[i], api));
+        if (!cameraOn && list[i].kind === 'lock') {
+          appendDoorbell(root);
+          cameraOn = true;
         }
+      }
+      if (!cameraOn) {
+        appendDoorbell(root);
+      }
+    }
+
+    function doorRowEl(door, api) {
+      var reading = api && api.readingFor ? api.readingFor(door) : null;
+      var view = api && api.resolveDoor ? api.resolveDoor(door, reading) : {
+        name: door.name || 'Door',
+        label: 'Unknown',
+        attention: false,
+        known: false
+      };
+      var row = el('div', api && api.rowClass ? api.rowClass(view) : 'door-row');
+      row.appendChild(el('span', 'door-name', view.name));
+      row.appendChild(el('span', 'door-state', view.label));
+      return row;
+    }
+
+    function appendDoorbell(root) {
+      var block = el('div', 'door-camera');
+      var cfg = settings();
+      if (!sampleOn() && !nestConfigured(cfg)) {
+        var button = el('button', 'tile-action', 'Setup');
+        button.type = 'button';
+        button.setAttribute('data-nest-setup', '1');
+        block.appendChild(button);
+        var labels = missingLabels(cfg);
+        if (labels.length && labels.length < REQUIRED.length) {
+          appendHelp(block, ['Still needed: ' + labels.join(', ') + '.']);
+        } else {
+          appendHelp(block, ['Doorbell setup is in the README.']);
+        }
+        root.appendChild(block);
         return;
       }
-      var head = el('div', 'tile-line');
-      head.appendChild(el('span', 'tile-name', doorbell.name));
-      head.appendChild(el('span', doorbell.online ? 'tile-ok' : 'tile-bad', doorbell.online ? 'Online' : 'Offline'));
-      root.appendChild(head);
-      root.appendChild(el('div', 'tile-meta', clockLine('Last ring', events.chime)));
-      root.appendChild(el('div', 'tile-meta', motionLine(events.motion)));
+      if (!doorbell) {
+        if (phase === 'ready') {
+          block.appendChild(el('div', 'tile-status', 'No doorbell'));
+          block.appendChild(el('p', 'tile-help', 'This Nest account has no doorbell.'));
+        } else if (phase === 'error') {
+          block.appendChild(el('div', 'tile-status', "Can't reach Nest"));
+          if (warning) {
+            block.appendChild(el('p', 'tile-help', warning));
+          }
+        } else if (phase !== 'setup') {
+          block.appendChild(el('div', 'tile-status', 'Loading\u2026'));
+        }
+        root.appendChild(block);
+        return;
+      }
+      var status = doorbell.online ? 'Online' : 'Offline';
+      block.appendChild(el('div', 'tile-meta', clockLine('Last ring', events.chime) + ' \u00b7 ' + status));
+      block.appendChild(el('div', 'tile-meta', motionLine(events.motion)));
       if (snapshotUrl) {
         var img = el('img', 'door-shot');
         img.alt = 'Latest doorbell snapshot';
         img.src = snapshotUrl;
-        root.appendChild(img);
+        block.appendChild(img);
       } else if (doorbell.sample) {
-        root.appendChild(sampleShot());
+        block.appendChild(sampleShot());
       } else {
-        root.appendChild(el('div', 'door-shot door-empty', 'No snapshot yet'));
+        block.appendChild(el('div', 'door-shot door-empty', 'No snapshot yet'));
       }
       if (eventNote) {
-        root.appendChild(el('p', 'tile-help', eventNote));
+        block.appendChild(el('p', 'tile-help', eventNote));
       }
       if (doorbell.webRtc || doorbell.sample) {
         var liveBtn = el('button', 'tile-action', 'Live view');
         liveBtn.type = 'button';
         liveBtn.setAttribute('data-nest-live', '1');
-        root.appendChild(liveBtn);
+        block.appendChild(liveBtn);
       }
       if (warning && !thermostat) {
-        root.appendChild(el('p', 'tile-help', warning));
+        block.appendChild(el('p', 'tile-help', warning));
       }
+      root.appendChild(block);
     }
 
     function sampleShot() {
@@ -854,47 +902,13 @@
       }
     }
 
-    function lockNow() {
-      if (util.query && util.query.unlocked) {
-        return { name: 'Front door', unlocked: true, known: true, label: 'Unlocked' };
-      }
-      if (sampleOn()) {
-        return { name: 'Front door', unlocked: false, known: true, label: 'Locked' };
-      }
-      var hub = window.KH && window.KH.smartthings;
-      if (hub && hub.currentLock) {
-        return hub.currentLock();
-      }
-      return null;
-    }
-
-    function paintLock(root) {
-      var state = lockNow();
-      if (!state || !state.known) {
-        root.classList.remove('is-unlocked');
-        return;
-      }
-      if (state.unlocked) {
-        root.classList.add('is-unlocked');
-      } else {
-        root.classList.remove('is-unlocked');
-      }
-      var label = (state.name || 'Front door') + (state.unlocked ? ' unlocked' : ' locked');
-      root.appendChild(el('div', 'tile-lock', label));
-    }
-
     function render() {
       util.safeRender('nest', function () {
         var door = util.$('nest-doorbell');
         var thermo = util.$('nest-thermostat');
         var cfg = settings();
         if (door) {
-          if (!sampleOn() && !nestConfigured(cfg)) {
-            notConnected(door, 'Doorbell', cfg);
-          } else {
-            fillDoorbell(door);
-          }
-          paintLock(door);
+          fillDoors(door);
         }
         if (thermo) {
           if (!sampleOn() && !nestConfigured(cfg)) {

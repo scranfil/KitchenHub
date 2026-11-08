@@ -24,4 +24,9 @@
     token: '',
     lockName: 'front'
   };
+  // Garage entity id only. Put the Home Assistant URL and token in
+  // homeassistant.json on the home server, never in this file.
+  // if (cfg.doors && cfg.doors.length > 1) {
+  //   cfg.doors[1].entityId = 'cover.garage_door';
+  // }
 })();
