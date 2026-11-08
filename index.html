@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="style.css?v=202611040915">
+  <link rel="stylesheet" href="style.css?v=202611080716">
 </head>
 <body class="theme-day">
   <div id="root">
@@ -31,7 +31,24 @@
       </div>
 
       <section id="current" class="current" aria-label="Current weather">
-        <div class="placeholder-copy">Loading weather…</div>
+        <div id="hero-tools" class="hero-tools">
+          <button type="button" id="map-open" class="map-open" aria-label="Weather map">
+            <svg class="map-icon" viewBox="0 0 64 64" aria-hidden="true">
+              <path fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round" d="M8 18l16-8 16 8 16-8v36l-16 8-16-8-16 8z"/>
+              <path fill="none" stroke="currentColor" stroke-width="4" d="M24 10v36M40 18v36"/>
+              <circle cx="40" cy="28" r="4" fill="currentColor"/>
+            </svg>
+          </button>
+          <button type="button" id="news-open" class="news-open" aria-label="News">
+            <svg class="map-icon" viewBox="0 0 64 64" aria-hidden="true">
+              <rect x="10" y="8" width="44" height="48" rx="3" fill="none" stroke="currentColor" stroke-width="4"/>
+              <path fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" d="M18 22h28M18 32h28M18 42h16"/>
+            </svg>
+          </button>
+        </div>
+        <div id="current-body">
+          <div class="placeholder-copy">Loading weather…</div>
+        </div>
       </section>
     </div>
 
@@ -42,7 +59,11 @@
 
       <section id="daily" class="daily" aria-label="Five day forecast"></section>
 
-      <section id="news" class="news" aria-label="News"></section>
+      <section id="home" class="home" aria-label="Home">
+        <section id="nest-doorbell" class="home-tile" aria-label="Doorbell"></section>
+        <section id="nest-thermostat" class="home-tile" aria-label="Thermostat"></section>
+        <section id="hue" class="home-tile" aria-label="Lights"></section>
+      </section>
     </div>
 
     <footer id="status" class="status" aria-label="Update status">
@@ -50,19 +71,25 @@
       <span id="offline-pill" class="offline-pill" hidden>Offline, showing cached data</span>
     </footer>
   </div>
+  <div id="news-list" class="news-modal news-list-modal" aria-label="News" hidden></div>
   <div id="news-detail" class="news-modal" aria-label="Story detail" hidden></div>
   <div id="day-detail" class="day-modal" aria-label="Day forecast" hidden></div>
   <div id="map-detail" class="day-modal map-modal" aria-label="Weather map" hidden></div>
+  <div id="live-view" class="day-modal live-modal" aria-label="Doorbell live view" hidden></div>
+  <div id="nest-setup" class="day-modal" aria-label="Nest setup" hidden></div>
   <div id="debug" class="debug" hidden></div>
 
-  <script src="config.js?v=202610242310"></script>
-  <script src="js/util.js?v=202611080645"></script>
+  <script src="config.js?v=202611041500"></script>
+  <script src="js/util.js?v=202611080716"></script>
   <script src="js/icons.js?v=202610211245"></script>
-  <script src="js/weather.js?v=202611021420"></script>
+  <script src="js/weather.js?v=202611041500"></script>
   <script src="js/alerts.js?v=202610211245"></script>
-  <script src="js/news.js?v=202611080645"></script>
+  <script src="js/news.js?v=202611080716"></script>
   <script src="js/scores.js?v=202610242310"></script>
-  <script src="js/presence.js?v=202611080645"></script>
-  <script src="js/app.js?v=202611080645"></script>
+  <script src="js/nest.js?v=202611041610"></script>
+  <script src="js/smartthings.js?v=202611041630"></script>
+  <script src="js/hue.js?v=202611041630"></script>
+  <script src="js/presence.js?v=202611080716"></script>
+  <script src="js/app.js?v=202611080716"></script>
 </body>
 </html>

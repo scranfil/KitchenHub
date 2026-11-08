@@ -130,7 +130,7 @@
     for (i = 0; i < names.length; i++) {
       lines.push('timer ' + names[i] + ': ' + (util.timers[names[i]] ? 'armed' : 'idle'));
     }
-    var panels = ['weather', 'alerts', 'sun', 'news', 'scores'];
+    var panels = ['weather', 'alerts', 'sun', 'news', 'scores', 'nest-doorbell', 'nest-thermostat', 'hue'];
     for (i = 0; i < panels.length; i++) {
       var c = util.cacheGet(panels[i]);
       if (c) {
@@ -147,7 +147,7 @@
 
   function skipsRefresh(node) {
     while (node) {
-      if (node.id === 'news' || node.id === 'news-detail' || node.id === 'daily' || node.id === 'day-detail' || node.id === 'map-detail') {
+      if (node.id === 'news-list' || node.id === 'news-detail' || node.id === 'daily' || node.id === 'day-detail' || node.id === 'map-detail' || node.id === 'home' || node.id === 'hero-tools' || node.id === 'live-view' || node.id === 'nest-setup') {
         return true;
       }
       node = node.parentNode;
@@ -189,6 +189,15 @@
     if (KH.scores && KH.scores.refresh) {
       KH.scores.refresh();
     }
+    if (KH.nest && KH.nest.refresh) {
+      KH.nest.refresh();
+    }
+    if (KH.hue && KH.hue.refresh) {
+      KH.hue.refresh();
+    }
+    if (KH.smartthings && KH.smartthings.refresh) {
+      KH.smartthings.refresh();
+    }
   }
 
   function boot() {
@@ -206,6 +215,15 @@
     }
     if (KH.scores && KH.scores.init) {
       KH.scores.init();
+    }
+    if (KH.nest && KH.nest.init) {
+      KH.nest.init();
+    }
+    if (KH.hue && KH.hue.init) {
+      KH.hue.init();
+    }
+    if (KH.smartthings && KH.smartthings.init) {
+      KH.smartthings.init();
     }
     if (KH.presence && KH.presence.init) {
       KH.presence.init();
@@ -269,9 +287,25 @@
     });
   }
 
+  function loadLocalConfig(done) {
+    var script = document.createElement('script');
+    script.src = 'config.local.js?v=' + Date.now();
+    script.onload = function () {
+      done();
+    };
+    script.onerror = function () {
+      done();
+    };
+    document.head.appendChild(script);
+  }
+
+  function start() {
+    loadLocalConfig(boot);
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
+    document.addEventListener('DOMContentLoaded', start);
   } else {
-    boot();
+    start();
   }
 })();

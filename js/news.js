@@ -400,6 +400,7 @@
     var failCount = 0;
     var emptyMessage = 'Loading headlines…';
     var bound = false;
+    var listOpen = false;
 
     function rotateSeconds() {
       var newsCfg = util.cfg.news || {};
@@ -457,7 +458,7 @@
 
     function armRotate() {
       util.clearTimer('news-rotate');
-      if (detailOpen || items.length < 2) {
+      if (!util.$('news') || detailOpen || listOpen || items.length < 2) {
         return;
       }
       util.schedule('news-rotate', function () {
@@ -474,7 +475,169 @@
       }, rotateSeconds() * 1000);
     }
 
+    function sampleHeadlines() {
+      var nowMs = Date.now();
+      function ago(min) {
+        return new Date(nowMs - min * 60000).toUTCString();
+      }
+      return [
+        {
+          title: 'City council keeps the same tax rate',
+          source: 'WTHR',
+          published: ago(25),
+          summary: 'The council voted to leave the levy unchanged for the coming year.',
+          link: ''
+        },
+        {
+          title: 'Cold front reaches central Indiana tonight',
+          source: 'NPR',
+          published: ago(50),
+          summary: 'Temperatures fall after midnight, with a chance of showers before dawn.',
+          link: ''
+        },
+        {
+          title: 'Airport board delays the new concourse vote',
+          source: 'Associated Press',
+          published: ago(90),
+          summary: 'Members asked for another month to review the cost estimate.',
+          link: ''
+        },
+        {
+          title: 'Library adds Sunday hours at two branches',
+          source: 'PBS NewsHour',
+          published: ago(140),
+          summary: 'The expanded hours start next month.',
+          link: ''
+        },
+        {
+          title: 'High school robotics team heads to state',
+          source: 'WTHR',
+          published: ago(200),
+          summary: 'The team qualified after a weekend meet on the north side.',
+          link: ''
+        }
+      ];
+    }
+
+    function renderList() {
+      var panel = util.$('news-list');
+      if (!panel) {
+        return;
+      }
+      var previous = panel.querySelector('.news-list-scroll');
+      var scrollTop = previous ? previous.scrollTop : 0;
+      util.emptyEl(panel);
+      var backdrop = el('div', 'news-modal-backdrop');
+      var card = el('div', 'news-modal-card news-list-card');
+      card.setAttribute('role', 'dialog');
+      card.setAttribute('aria-modal', 'true');
+      card.setAttribute('aria-label', 'News');
+      var head = el('div', 'news-list-head');
+      head.appendChild(el('h2', 'news-list-title', 'News'));
+      var closeBtn = el('button', 'news-list-close', 'Close');
+      closeBtn.type = 'button';
+      closeBtn.setAttribute('aria-label', 'Close news');
+      head.appendChild(closeBtn);
+      var scroller = el('div', 'news-modal-scroll news-list-scroll');
+      if (!items.length) {
+        scroller.appendChild(el('p', 'placeholder-copy', emptyMessage));
+      } else {
+        var i;
+        for (i = 0; i < items.length; i++) {
+          var item = items[i];
+          var row = el('button', 'news-row');
+          row.type = 'button';
+          row.setAttribute('data-news-index', String(i));
+          row.appendChild(el('div', 'news-row-title', oneLine(item.title)));
+          var meta = item.source || 'News';
+          var age = ageLabel(item.published);
+          if (age) {
+            meta += ' \u00b7 ' + age;
+          }
+          row.appendChild(el('div', 'news-row-meta', meta));
+          scroller.appendChild(row);
+        }
+      }
+      card.appendChild(head);
+      card.appendChild(scroller);
+      panel.appendChild(backdrop);
+      panel.appendChild(card);
+      scroller.scrollTop = scrollTop;
+    }
+
+    function openList() {
+      listOpen = true;
+      util.clearTimer('news-rotate');
+      renderList();
+      var panel = util.$('news-list');
+      if (panel) {
+        panel.hidden = false;
+      }
+      var closeBtn = panel ? panel.querySelector('.news-list-close') : null;
+      if (closeBtn && closeBtn.focus) {
+        closeBtn.focus();
+      }
+    }
+
+    function closeList() {
+      listOpen = false;
+      if (detailOpen) {
+        closeDetail();
+      }
+      var panel = util.$('news-list');
+      if (panel) {
+        panel.hidden = true;
+        util.emptyEl(panel);
+      }
+      var opener = util.$('news-open');
+      if (opener && opener.focus) {
+        opener.focus();
+      }
+    }
+
+    function onListClick(ev) {
+      ev.stopPropagation();
+      var node = ev.target;
+      while (node && node.id !== 'news-list') {
+        if (node.classList && node.classList.contains('news-list-close')) {
+          ev.preventDefault();
+          closeList();
+          return;
+        }
+        if (node.classList && node.classList.contains('news-row')) {
+          ev.preventDefault();
+          var idx = Number(node.getAttribute('data-news-index'));
+          if (!isNaN(idx)) {
+            index = idx;
+          }
+          openDetail();
+          return;
+        }
+        if (node.classList && node.classList.contains('news-modal-card')) {
+          return;
+        }
+        node = node.parentNode;
+      }
+      closeList();
+    }
+
+    function onNewsKey(ev) {
+      if (ev.key !== 'Escape' && ev.key !== 'Esc') {
+        return;
+      }
+      if (detailOpen) {
+        closeDetail();
+        return;
+      }
+      if (listOpen) {
+        closeList();
+      }
+    }
+
     function renderHeadline() {
+      if (listOpen) {
+        renderList();
+      }
       if (swipe.active) {
         headlineDirty = true;
         return;
@@ -698,6 +861,12 @@
     }
 
     function refresh() {
+      if (util.query && util.query.sample) {
+        var sample = sampleHeadlines();
+        util.cacheSet('news', sample);
+        applyItems(sample, Date.now());
+        return;
+      }
       var sources = newsSources();
       var lists = [];
       var keys = [];
@@ -938,6 +1107,23 @@
           detailEl.addEventListener('pointerup', onPointerUp);
           detailEl.addEventListener('pointercancel', onPointerCancel);
         }
+        var openBtn = util.$('news-open');
+        var listEl = util.$('news-list');
+        if (openBtn) {
+          openBtn.addEventListener('click', function (ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            if (listOpen) {
+              closeList();
+            } else {
+              openList();
+            }
+          });
+        }
+        if (listEl) {
+          listEl.addEventListener('click', onListClick);
+        }
+        document.addEventListener('keydown', onNewsKey);
         bound = true;
       }
       renderCache();
