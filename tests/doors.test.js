@@ -2,7 +2,13 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const doors = require('../js/doors.js');
 
-const FRONT = { id: 'front', name: 'Front Door', kind: 'lock', source: 'smartthings' };
+const FRONT = {
+  id: 'front',
+  name: 'Front Door',
+  kind: 'lock',
+  source: 'homeassistant',
+  entityId: 'lock.entryway_entryway_lock'
+};
 const GARAGE = {
   id: 'garage',
   name: 'Garage door (main)',
@@ -69,22 +75,60 @@ test('a missing source or unreadable state stays neutral', function () {
   assert.equal(missing.known, false);
 });
 
-test('transitional and crossed states never look locked or closed', function () {
+test('garage transitional states never look closed', function () {
   var opening = view(GARAGE, { connected: true, known: true, value: 'opening' });
   var closing = view(GARAGE, { connected: true, known: true, value: 'closing' });
-  var jammed = view(FRONT, { connected: true, known: true, value: 'jammed' });
   var garageLockWord = view(GARAGE, { connected: true, known: true, value: 'locked' });
-  var lockOpenWord = view(FRONT, { connected: true, known: true, value: 'open' });
 
   assert.equal(opening.label, 'Unknown');
   assert.equal(opening.attention, false);
   assert.equal(closing.label, 'Unknown');
   assert.equal(closing.attention, false);
-  assert.equal(jammed.label, 'Unknown');
-  assert.equal(jammed.attention, false);
   assert.equal(garageLockWord.label, 'Unknown');
-  assert.equal(lockOpenWord.label, 'Unknown');
-  assert.equal(lockOpenWord.attention, false);
+  assert.equal(garageLockWord.attention, false);
+});
+
+test('home assistant lock states map to labels and highlighting', function () {
+  var cases = [
+    ['locked', 'Locked', false],
+    ['unlocked', 'Unlocked', true],
+    ['locking', 'Locking', false],
+    ['unlocking', 'Unlocking', false],
+    ['jammed', 'Jammed', true],
+    ['open', 'Open', true],
+    ['opening', 'Opening', false]
+  ];
+  var i;
+  for (i = 0; i < cases.length; i++) {
+    var row = view(FRONT, { connected: true, known: true, value: cases[i][0] });
+    assert.equal(row.label, cases[i][1], cases[i][0]);
+    assert.equal(row.attention, cases[i][2], cases[i][0]);
+    assert.equal(row.known, true, cases[i][0]);
+    assert.equal(doors.rowClass(row), cases[i][2] ? 'door-row is-attention' : 'door-row', cases[i][0]);
+  }
+
+  var unavailable = doors.haReading({ state: 'unavailable', entity_id: 'lock.entryway_entryway_lock' });
+  var unknown = doors.haReading({ state: 'unknown' });
+  var down = view(FRONT, { connected: true, known: unavailable.known, value: unavailable.value });
+  var blank = view(FRONT, { connected: true, known: unknown.known, value: unknown.value });
+  assert.equal(down.label, 'Unknown');
+  assert.equal(down.attention, false);
+  assert.equal(doors.rowClass(down), 'door-row is-neutral');
+  assert.equal(blank.label, 'Unknown');
+  assert.equal(blank.attention, false);
+
+  var odd = view(FRONT, { connected: true, known: true, value: 'closed' });
+  assert.equal(odd.label, 'Unknown');
+  assert.equal(odd.attention, false);
+
+  var noEntity = view({
+    name: 'Front Door',
+    kind: 'lock',
+    source: 'homeassistant',
+    entityId: ''
+  }, { connected: true, known: true, value: 'locked' });
+  assert.equal(noEntity.label, 'Not connected');
+  assert.equal(noEntity.attention, false);
 });
 
 test('home assistant cover payloads normalize to a reading', function () {
@@ -112,7 +156,8 @@ test('a smartthings lock reading becomes a door reading', function () {
   }), { connected: true, known: true, value: 'locked' });
   assert.equal(doors.lockReadingToState({ unlocked: false, known: false, label: 'Unknown' }).known, false);
   assert.equal(doors.lockReadingToState(null).known, false);
-  var unlocked = view(FRONT, doors.lockReadingToState({ unlocked: true, known: true, label: 'Unlocked' }));
+  var hubDoor = { name: 'Front Door', kind: 'lock', source: 'smartthings' };
+  var unlocked = view(hubDoor, doors.lockReadingToState({ unlocked: true, known: true, label: 'Unlocked' }));
   assert.equal(unlocked.label, 'Unlocked');
   assert.equal(unlocked.attention, true);
 });
@@ -133,6 +178,21 @@ test('a sample preview can show a door before its source is configured', functio
   var unknown = view(GARAGE, { preview: true, connected: true, known: false, value: 'open' });
   assert.equal(unknown.label, 'Unknown');
   assert.equal(unknown.attention, false);
+});
+
+test('the default front door is the entryway Home Assistant lock', function () {
+  var list = doors.doorList({});
+  assert.equal(list[0].name, 'Front Door');
+  assert.equal(list[0].kind, 'lock');
+  assert.equal(list[0].source, 'homeassistant');
+  assert.equal(list[0].entityId, 'lock.entryway_entryway_lock');
+  assert.equal(list[1].kind, 'garage');
+  assert.equal(list[1].entityId, '');
+  assert.equal(doors.entityIdOk('lock.entryway_entryway_lock'), true);
+  assert.equal(
+    doors.haStateUrl('http://homeassistant.local:8123', 'lock.entryway_entryway_lock'),
+    'http://homeassistant.local:8123/api/states/lock.entryway_entryway_lock'
+  );
 });
 
 test('the door list keeps names and drops a bad entity id', function () {

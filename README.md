@@ -136,7 +136,7 @@ Create the app once, on that computer:
 8. On that same computer, open `http://127.0.0.1:8080/smartthings/connect`. Paste the client id and secret, then **Save and connect**. Approve Kitchen Hub in the SmartThings page that opens. The server stores the refresh token in `smartthings.oauth.json`.
 9. If you open the connect page from the tablet instead, register a second redirect URI for that host, for example `http://192.168.1.20:8080/smartthings/callback`, because SmartThings requires the redirect to match the address in the browser.
 
-The lights tile lists each Hue label once. When the same name appears twice, the Hue integration device is the one that stays. The front-door row uses the lock whose name contains `smartthings.lockName` (default `front`).
+The lights tile lists each Hue label once. When the same name appears twice, the Hue integration device is the one that stays. `smartthings.lockName` is used only when a door's source is set to `smartthings`.
 
 The lights tile still has a personal-token box labeled as expiring in 24 hours. That is only a fallback. The OAuth login above is the one that keeps working.
 
@@ -144,7 +144,7 @@ The lights tile still has a personal-token box labeled as expiring in 24 hours. 
 
 `config.doors` is the list on the doors tile. Each entry has a name, a kind (`lock` or `garage`), and a source, so a door can later use a different reader without changing the tile.
 
-The front door source is `smartthings`. It reuses the lock status above. Locked stays quiet. Unlocked turns that row red. The garage source is `homeassistant`. Set `entityId` (for example `cover.garage_door`) in `config.js` or `config.local.js`. Open turns that row red. Closed stays quiet.
+The front door and the garage both read Home Assistant through the home server. The front door `entityId` defaults to `lock.entryway_entryway_lock` (Entryway Lock). Locked stays quiet. Unlocked, open, and jammed turn that row red. Locking, unlocking, and opening show those words and stay quiet. Set the garage `entityId` (for example `cover.garage_door`) in `config.js` or `config.local.js`. Open turns that row red. Closed stays quiet. A door whose source is `smartthings` can still use the hub lock; that is not the front door's default.
 
 Copy `homeassistant.json.example` to `homeassistant.json` on the computer that runs `node tools/kitchen-server.js`. Put the Home Assistant base URL and a long-lived token in that file. It is gitignored. The page never sees the URL or the token; the tablet only asks the home server for the state. With no source, or when the state cannot be read, the row says **Not connected** or **Unknown**. It does not show a lock or garage control, and it does not guess locked or closed.
 

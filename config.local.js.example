@@ -24,9 +24,13 @@
     token: '',
     lockName: 'front'
   };
-  // Garage entity id only. Put the Home Assistant URL and token in
-  // homeassistant.json on the home server, never in this file.
-  // if (cfg.doors && cfg.doors.length > 1) {
+  // Door entity ids are not secrets. The Home Assistant URL and token
+  // belong in homeassistant.json on the home server, never in this file.
+  // The front door already defaults to lock.entryway_entryway_lock.
+  // if (cfg.doors && cfg.doors[0]) {
+  //   cfg.doors[0].entityId = 'lock.entryway_entryway_lock';
+  // }
+  // if (cfg.doors && cfg.doors[1]) {
   //   cfg.doors[1].entityId = 'cover.garage_door';
   // }
 })();
