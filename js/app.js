@@ -5,6 +5,7 @@
   var util = KH.util;
   var TAP_DEBOUNCE_MS = 30000;
   var lastTap = 0;
+  var bootAt = Date.now();
   var statusTimes = { weather: null, news: null };
 
   KH.status = {
@@ -24,8 +25,34 @@
     }
   }
 
+  function hardReload() {
+    window.location.reload();
+  }
+
+  function reloadDue() {
+    if (!KH.presence || typeof KH.presence.shouldReload !== 'function') {
+      return false;
+    }
+    return KH.presence.shouldReload(
+      bootAt,
+      Date.now(),
+      util.cfg.dailyReload,
+      util.timezone(),
+      26 * 60 * 60 * 1000
+    );
+  }
+
   function renderClock() {
-    util.detectClockJump();
+    // Chrome on this tablet can freeze timers for hours while the panel stays
+    // dim on stale data. A wall-clock gap means the page must start over.
+    if (util.detectClockJump()) {
+      hardReload();
+      return;
+    }
+    if (reloadDue()) {
+      hardReload();
+      return;
+    }
     var n = util.now();
     var cfg = util.cfg.clock || {};
     var parts = util.formatTime(n, { hour12: cfg.hour12 !== false, seconds: !!cfg.showSeconds });
@@ -214,9 +241,15 @@
     if (KH.presence && typeof KH.presence.msUntilReload === 'function') {
       delay = KH.presence.msUntilReload(util.now(), util.cfg.dailyReload, util.timezone(), cap);
     }
-    util.schedule('daily-reload', function () {
-      window.location.reload();
-    }, delay);
+    util.schedule('daily-reload', hardReload, delay);
+    // Cheap wall-clock safety net while setTimeout is frozen or delayed.
+    util.schedule('reload-watch', function tickReloadWatch() {
+      if (reloadDue()) {
+        hardReload();
+        return;
+      }
+      util.schedule('reload-watch', tickReloadWatch, 60000);
+    }, 60000);
   }
 
   function registerApp() {

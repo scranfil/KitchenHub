@@ -6,7 +6,7 @@
 
   var CACHE_PREFIX = 'kh:v1:';
   var FETCH_TIMEOUT_MS = 15000;
-  var CLOCK_JUMP_MS = 5 * 60 * 1000;
+  var CLOCK_JUMP_MS = 10 * 60 * 1000;
 
   var timers = {};
   var inflight = {};

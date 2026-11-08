@@ -274,11 +274,38 @@
     return wait;
   }
 
+  // Wall-clock check so a frozen setTimeout cannot skip the nightly reload.
+  function shouldReload(loadedAtMs, nowMs, clockText, timeZone, maxAgeMs) {
+    var loaded = Number(loadedAtMs);
+    var now = Number(nowMs);
+    var cap = Number(maxAgeMs);
+    if (isNaN(loaded) || isNaN(now) || now < loaded) {
+      return false;
+    }
+    if (isNaN(cap) || cap < 60000) {
+      cap = RELOAD_CAP_MS;
+    }
+    if (now - loaded >= cap) {
+      return true;
+    }
+    var target = parseClock(clockText);
+    var loadMin = clockMinutes(new Date(loaded), timeZone);
+    if (target == null || loadMin == null) {
+      return false;
+    }
+    var delta = target - loadMin;
+    if (delta <= 0) {
+      delta += 1440;
+    }
+    return now >= loaded + delta * 60000;
+  }
+
   exports.fullySettings = fullySettings;
   exports.createController = createController;
   exports.motionHit = motionHit;
   exports.cameraAction = cameraAction;
   exports.msUntilReload = msUntilReload;
+  exports.shouldReload = shouldReload;
   exports.DEFAULT_IDLE_SECONDS = DEFAULT_IDLE_SECONDS;
 
   function attachBrowserApi() {
