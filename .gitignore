@@ -2,6 +2,7 @@
 # that serves the page. Never commit tokens, client secrets, or app keys.
 config.local.js
 smartthings.oauth.json
+homeassistant.json
 .env
 .env.*
 !.env.example

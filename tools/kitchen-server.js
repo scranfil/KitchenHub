@@ -1,8 +1,10 @@
 'use strict';
 
-// Static host for Kitchen Hub plus a same-LAN door to the Hue bridge.
-// The bridge does not send CORS headers, and a public site cannot call a
-// private address, so the tablet reaches it through this process instead.
+// Static host for Kitchen Hub, a same-LAN door to the Hue bridge, and a
+// Home Assistant state read. The bridge does not send CORS headers, and a
+// public site cannot call a private address, so the tablet reaches it
+// through this process instead. The Home Assistant URL and token stay in
+// gitignored homeassistant.json and are never sent to the browser.
 
 var http = require('http');
 var https = require('https');
@@ -11,6 +13,7 @@ var path = require('path');
 var url = require('url');
 var crypto = require('crypto');
 var hue = require('../js/hue.js');
+var doorState = require('../js/doors.js');
 var oauth = require('./smartthings-oauth.js');
 
 var PORT = Number(process.env.PORT) || 8080;
@@ -144,6 +147,10 @@ function serveStatic(req, res, pathname) {
   var file = safeFile(rel);
   if (!file) {
     send(res, 403, { 'Content-Type': 'text/plain; charset=utf-8' }, 'Forbidden');
+    return;
+  }
+  if (path.basename(file) === 'homeassistant.json') {
+    send(res, 404, { 'Content-Type': 'text/plain; charset=utf-8' }, 'Not found');
     return;
   }
   fs.stat(file, function (err, stat) {
@@ -410,6 +417,96 @@ function handleSmartThings(req, res, ctx, pathname, parsed) {
   return false;
 }
 
+function readHaFile(file) {
+  try {
+    var parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (!parsed || typeof parsed !== 'object') {
+      return { url: '', token: '' };
+    }
+    return {
+      url: String(parsed.url || '').replace(/^\s+|\s+$/g, ''),
+      token: String(parsed.token || '').replace(/^\s+|\s+$/g, '')
+    };
+  } catch (err) {
+    return { url: '', token: '' };
+  }
+}
+
+function requestAbsolute(targetUrl, headers) {
+  return new Promise(function (resolve, reject) {
+    var parsed = url.parse(targetUrl);
+    var lib = parsed.protocol === 'https:' ? https : http;
+    var req = lib.request({
+      protocol: parsed.protocol,
+      hostname: parsed.hostname,
+      port: parsed.port,
+      path: parsed.path,
+      method: 'GET',
+      headers: headers,
+      timeout: 8000
+    }, function (upstream) {
+      var chunks = [];
+      upstream.on('data', function (chunk) {
+        chunks.push(chunk);
+      });
+      upstream.on('end', function () {
+        resolve({ status: upstream.statusCode || 0, body: Buffer.concat(chunks) });
+      });
+    });
+    req.on('timeout', function () {
+      req.destroy();
+      reject(new Error('timeout'));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+function handleHomeAssistant(req, res, ctx, pathname, parsed) {
+  if (pathname !== '/homeassistant/state') {
+    return false;
+  }
+  if (req.method !== 'GET') {
+    send(res, 405, { 'Content-Type': 'text/plain; charset=utf-8' }, 'Method not allowed');
+    return true;
+  }
+  var entity = parsed.query && typeof parsed.query.entity === 'string' ? parsed.query.entity : '';
+  if (!doorState.entityIdOk(entity)) {
+    jsonSend(res, 400, { connected: false });
+    return true;
+  }
+  var cfg = readHaFile(ctx.haPath);
+  var target = cfg.url && cfg.token ? doorState.haStateUrl(cfg.url, entity) : '';
+  if (!target) {
+    jsonSend(res, 200, { connected: false });
+    return true;
+  }
+  requestAbsolute(target, {
+    Authorization: 'Bearer ' + cfg.token,
+    Accept: 'application/json'
+  }).then(function (result) {
+    var data = null;
+    try {
+      data = JSON.parse(result.body.toString('utf8'));
+    } catch (err) {
+      data = null;
+    }
+    if (result.status < 200 || result.status >= 300) {
+      jsonSend(res, 200, { connected: true, known: false });
+      return;
+    }
+    var reading = doorState.haReading(data);
+    if (!reading.known) {
+      jsonSend(res, 200, { connected: true, known: false });
+      return;
+    }
+    jsonSend(res, 200, { connected: true, known: true, state: reading.value });
+  }).catch(function () {
+    jsonSend(res, 200, { connected: true, known: false });
+  });
+  return true;
+}
+
 function onRequest(req, res, ctx) {
   var parsed = url.parse(req.url || '/', true);
   var pathname = parsed.pathname || '/';
@@ -420,6 +517,9 @@ function onRequest(req, res, ctx) {
     return;
   }
   if (handleSmartThings(req, res, ctx, pathname, parsed)) {
+    return;
+  }
+  if (handleHomeAssistant(req, res, ctx, pathname, parsed)) {
     return;
   }
   if (pathname === '/hue-discovery') {
@@ -469,6 +569,7 @@ function createServer(options) {
   options = options || {};
   var ctx = {
     oauthPath: options.oauthPath || process.env.ST_OAUTH_PATH || path.join(ROOT, 'smartthings.oauth.json'),
+    haPath: options.haPath || process.env.HA_CONFIG_PATH || path.join(ROOT, 'homeassistant.json'),
     apiOrigin: options.apiOrigin || process.env.ST_API_ORIGIN || 'https://api.smartthings.com',
     states: {},
     refreshing: null

@@ -27,6 +27,12 @@ window.KH_CONFIG = {
     bridgeIp: "",
     appKey: ""
   },
+  // Each door is a name, a kind (lock or garage), and a source.
+  // Home Assistant's URL and token belong in homeassistant.json, not here.
+  doors: [
+    { id: "front", name: "Front Door", kind: "lock", source: "smartthings" },
+    { id: "garage", name: "Garage door (main)", kind: "garage", source: "homeassistant", entityId: "" }
+  ],
   smartthings: {
     token: "",
     lockName: "front"

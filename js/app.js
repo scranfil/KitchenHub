@@ -198,6 +198,9 @@
     if (KH.smartthings && KH.smartthings.refresh) {
       KH.smartthings.refresh();
     }
+    if (KH.doors && KH.doors.refresh) {
+      KH.doors.refresh();
+    }
   }
 
   function boot() {
@@ -224,6 +227,9 @@
     }
     if (KH.smartthings && KH.smartthings.init) {
       KH.smartthings.init();
+    }
+    if (KH.doors && KH.doors.init) {
+      KH.doors.init();
     }
     if (KH.presence && KH.presence.init) {
       KH.presence.init();

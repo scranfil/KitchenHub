@@ -1,6 +1,6 @@
 'use strict';
 
-var CACHE = 'kh-shell-11';
+var CACHE = 'kh-shell-12';
 var SHELL = [
   './',
   './index.html',
@@ -13,6 +13,7 @@ var SHELL = [
   './js/alerts.js',
   './js/news.js',
   './js/scores.js',
+  './js/doors.js',
   './js/nest.js',
   './js/smartthings.js',
   './js/hue.js',
@@ -95,6 +96,7 @@ function networkFirst(request) {
 function leaveToNetwork(url) {
   return url.pathname.indexOf('/hue-proxy/') !== -1 ||
     url.pathname.indexOf('/smartthings/') !== -1 ||
+    url.pathname.indexOf('/homeassistant/') !== -1 ||
     url.pathname.slice(-14) === '/hue-discovery' ||
     url.pathname.slice(-16) === '/config.local.js';
 }
