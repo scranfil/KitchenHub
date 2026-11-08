@@ -6,9 +6,22 @@
   // Home Assistant's URL and token never belong in this file.
 
   var DEFAULT_DOORS = [
-    { id: 'front', name: 'Front Door', kind: 'lock', source: 'smartthings' },
+    { id: 'front', name: 'Front Door', kind: 'lock', source: 'homeassistant', entityId: 'lock.entryway_entryway_lock' },
     { id: 'garage', name: 'Garage door (main)', kind: 'garage', source: 'homeassistant', entityId: '' }
   ];
+
+  // Home Assistant lock states. Red is reserved for a door that is not
+  // secure (unlocked, open) or a lock that failed (jammed). Moving states
+  // keep their own words so the row never claims Locked or Unlocked early.
+  var LOCK_LABELS = {
+    locked: 'Locked',
+    unlocked: 'Unlocked',
+    locking: 'Locking',
+    unlocking: 'Unlocking',
+    jammed: 'Jammed',
+    open: 'Open',
+    opening: 'Opening'
+  };
 
   function trim(value) {
     return String(value == null ? '' : value).replace(/^\s+|\s+$/g, '');
@@ -80,11 +93,9 @@
     var value = trim(reading.value).toLowerCase();
     var label = '';
     var attention = false;
-    if (item.kind === 'lock' && value === 'locked') {
-      label = 'Locked';
-    } else if (item.kind === 'lock' && value === 'unlocked') {
-      label = 'Unlocked';
-      attention = true;
+    if (item.kind === 'lock' && LOCK_LABELS[value]) {
+      label = LOCK_LABELS[value];
+      attention = value === 'unlocked' || value === 'open' || value === 'jammed';
     } else if (item.kind === 'garage' && value === 'closed') {
       label = 'Closed';
     } else if (item.kind === 'garage' && value === 'open') {
