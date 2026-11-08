@@ -924,6 +924,10 @@
               running -= 1;
               settle(idx, parsed);
               launch();
+            }).catch(function () {
+              running -= 1;
+              settle(idx, []);
+              launch();
             });
           })(cursor, keys[cursor]);
           cursor += 1;

@@ -77,6 +77,26 @@ test('camera motion ignores a still frame and catches a wave', function () {
   assert.equal(presence.motionHit(null, wave, 92), false);
 });
 
+test('daily reload waits until 3:00 and never reloads in that minute', function () {
+  var tz = 'America/New_York';
+  var cap = 26 * 60 * 60 * 1000;
+  assert.equal(presence.msUntilReload(new Date('2026-11-04T07:00:00.000Z'), '03:00', tz, cap), 60 * 60 * 1000);
+  assert.equal(presence.msUntilReload(new Date('2026-11-04T09:00:00.000Z'), '03:00', tz, cap), 23 * 60 * 60 * 1000);
+  assert.equal(presence.msUntilReload(new Date('2026-11-04T08:00:00.000Z'), '03:00', tz, cap), 24 * 60 * 60 * 1000);
+  assert.equal(presence.msUntilReload(new Date('2026-11-04T07:00:00.000Z'), '03:00', tz, 30 * 60 * 1000), 30 * 60 * 1000);
+  assert.equal(presence.msUntilReload(new Date('2026-11-04T07:00:00.000Z'), 'nope', tz, cap), cap);
+});
+
+test('wall clock reload catches a missed 3:00 and a 26 hour freeze', function () {
+  var tz = 'America/New_York';
+  var loaded = Date.parse('2026-11-07T20:27:00.000Z'); // 3:27 PM local
+  assert.equal(presence.shouldReload(loaded, Date.parse('2026-11-08T02:00:00.000Z'), '03:00', tz), false);
+  assert.equal(presence.shouldReload(loaded, Date.parse('2026-11-08T08:00:00.000Z'), '03:00', tz), true);
+  assert.equal(presence.shouldReload(loaded, loaded + 25 * 60 * 60 * 1000, 'nope', tz), false);
+  assert.equal(presence.shouldReload(loaded, loaded + 26 * 60 * 60 * 1000, 'nope', tz), true);
+  assert.equal(presence.shouldReload(loaded, loaded + 60 * 60 * 1000, '03:00', tz, 30 * 60 * 1000), true);
+});
+
 test('a paused camera with a live track should play again', function () {
   assert.equal(presence.cameraAction(true, 'live'), 'play');
   assert.equal(presence.cameraAction(false, 'live'), 'ok');
