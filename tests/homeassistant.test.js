@@ -116,6 +116,26 @@ test('home assistant state is read server-side and the token stays there', async
         }));
         return;
       }
+      if (req.url.indexOf('binary_sensor.kitchen_sliding_door') !== -1) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          state: 'on',
+          attributes: {
+            device_class: 'opening',
+            friendly_name: 'Kitchen Sliding Door',
+            token: TOKEN
+          }
+        }));
+        return;
+      }
+      if (req.url.indexOf('binary_sensor.basement_door') !== -1) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          state: 'unavailable',
+          attributes: { device_class: 'opening', friendly_name: 'Basement Door', token: TOKEN }
+        }));
+        return;
+      }
       if (req.url.indexOf('lock.entryway_entryway_lock') !== -1) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
@@ -223,6 +243,34 @@ test('home assistant state is read server-side and the token stays there', async
     }, { connected: true, known: true, value: JSON.parse(lock.body).state });
     assert.equal(lockView.label, 'Locked');
     assert.equal(lockView.attention, false);
+
+    var sliding = await request(sitePort, 'GET', '/homeassistant/state?entity=binary_sensor.kitchen_sliding_door');
+    var slidingBody = JSON.parse(sliding.body);
+    assert.deepEqual(slidingBody, { connected: true, known: true, state: 'on' });
+    assert.equal(sliding.body.indexOf(TOKEN), -1);
+    assert.equal(sliding.body.indexOf('Kitchen Sliding Door'), -1);
+    assert.equal(sliding.body.indexOf('device_class'), -1);
+    var slidingView = doors.resolveDoor({
+      name: 'Kitchen Door',
+      kind: 'contact',
+      source: 'homeassistant',
+      entityId: 'binary_sensor.kitchen_sliding_door'
+    }, { connected: true, known: true, value: slidingBody.state });
+    assert.equal(slidingView.label, 'Open');
+    assert.equal(slidingView.attention, true);
+
+    var basement = await request(sitePort, 'GET', '/homeassistant/state?entity=binary_sensor.basement_door');
+    assert.deepEqual(JSON.parse(basement.body), { connected: true, known: false });
+    assert.equal(basement.body.indexOf(TOKEN), -1);
+    assert.equal(basement.body.indexOf('Basement Door'), -1);
+    var basementView = doors.resolveDoor({
+      name: 'Basement Door',
+      kind: 'contact',
+      source: 'homeassistant',
+      entityId: 'binary_sensor.basement_door'
+    }, JSON.parse(basement.body));
+    assert.equal(basementView.label, 'Unknown');
+    assert.equal(basementView.attention, false);
 
     var unavailable = await request(sitePort, 'GET', '/homeassistant/state?entity=cover.missing');
     assert.deepEqual(JSON.parse(unavailable.body), { connected: true, known: false });

@@ -142,9 +142,11 @@ The lights tile still has a personal-token box labeled as expiring in 24 hours. 
 
 ### Doors
 
-`config.doors` is the list on the doors tile. Each entry has a name, a kind (`lock` or `garage`), and a source, so a door can later use a different reader without changing the tile.
+`config.doors` is the list on the doors tile. Each entry has a name, a kind (`lock`, `garage`, or `contact`), and a source, so a door can later use a different reader without changing the tile.
 
 The front door and the garage both read Home Assistant through the home server. The front door `entityId` defaults to `lock.entryway_entryway_lock` (Entryway Lock). Locked stays quiet. Unlocked, open, and jammed turn that row red. Locking, unlocking, and opening show those words and stay quiet. Set the garage `entityId` (for example `cover.garage_door`) in `config.js` or `config.local.js`. Open turns that row red. Closed stays quiet. A door whose source is `smartthings` can still use the hub lock; that is not the front door's default.
+
+Kitchen Door and Basement Door are contact sensors on that same list. Their entity ids are `binary_sensor.kitchen_sliding_door` and `binary_sensor.basement_door`. For those rows, Home Assistant `on` means Open and `off` means Closed. Open turns the row red. Closed stays quiet.
 
 Copy `homeassistant.json.example` to `homeassistant.json` on the computer that runs `node tools/kitchen-server.js`. Put the Home Assistant base URL and a long-lived token in that file. It is gitignored. The page never sees the URL or the token; the tablet only asks the home server for the state. With no source, or when the state cannot be read, the row says **Not connected** or **Unknown**. It does not show a lock or garage control, and it does not guess locked or closed.
 
