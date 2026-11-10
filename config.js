@@ -33,6 +33,10 @@ window.KH_CONFIG = {
     { id: "front", name: "Front Door", kind: "lock", source: "homeassistant", entityId: "lock.entryway_entryway_lock" },
     { id: "garage", name: "Garage door (main)", kind: "garage", source: "homeassistant", entityId: "" }
   ],
+  // Thermostat status from Home Assistant. The URL and token stay in homeassistant.json.
+  climate: {
+    entityId: ""
+  },
   smartthings: {
     token: "",
     lockName: "front"

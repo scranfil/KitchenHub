@@ -150,6 +150,8 @@ Copy `homeassistant.json.example` to `homeassistant.json` on the computer that r
 
 Ring, motion, the snapshot, **Live view**, and **Setup** stay attached to the front door. `?unlocked=1` highlights the front door. `?garage=open` highlights the garage.
 
+The thermostat tile reads one Home Assistant climate entity through that same server. Set `climate.entityId` in `config.js` or `config.local.js` (for example `climate.hallway`). The tile shows the current temperature, the mode, whether it is heating or cooling, and the setpoint. It does not change the setpoint. Until that id is set, the tile still uses the Nest thermostat above. An unread climate entity says **Not connected** or **Unknown**.
+
 ### Hue
 
 1. The tablet and the bridge need to be on the same Wi-Fi.

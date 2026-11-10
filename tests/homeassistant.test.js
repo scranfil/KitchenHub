@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 const http = require('http');
 const doors = require('../js/doors.js');
+const climate = require('../js/climate.js');
 const { createServer } = require('../tools/kitchen-server.js');
 
 const TOKEN = 'ha-test-token-not-real';
@@ -78,6 +79,29 @@ test('home assistant state is read server-side and the token stays there', async
         res.end(JSON.stringify({ message: TOKEN }));
         return;
       }
+      if (req.url.indexOf('climate.hallway') !== -1) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          state: 'heat',
+          attributes: {
+            current_temperature: 70.4,
+            temperature: 68,
+            hvac_action: 'heating',
+            temperature_unit: '°F',
+            friendly_name: 'Hallway',
+            token: TOKEN
+          }
+        }));
+        return;
+      }
+      if (req.url.indexOf('lock.entryway_entryway_lock') !== -1) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          state: 'locked',
+          attributes: { friendly_name: 'Entryway Lock', token: TOKEN }
+        }));
+        return;
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         state: state,
@@ -127,6 +151,32 @@ test('home assistant state is read server-side and the token stays there', async
     }, { connected: true, known: true, value: openBody.state });
     assert.equal(openView.label, 'Open');
     assert.equal(openView.attention, true);
+
+    var thermo = await request(sitePort, 'GET', '/homeassistant/state?entity=climate.hallway');
+    var thermoBody = JSON.parse(thermo.body);
+    assert.equal(thermoBody.state, 'heat');
+    assert.equal(thermoBody.current_temperature, 70.4);
+    assert.equal(thermoBody.temperature, 68);
+    assert.equal(thermoBody.hvac_action, 'heating');
+    assert.equal(thermoBody.name, 'Hallway');
+    assert.equal(thermo.body.indexOf(TOKEN), -1);
+    var thermoView = climate.climateView(thermoBody);
+    assert.equal(thermoView.ambient, 70);
+    assert.equal(thermoView.line, 'Heat · Heating');
+    assert.equal(thermoView.setpoint, 'Heat to 68°');
+
+    var lock = await request(sitePort, 'GET', '/homeassistant/state?entity=lock.entryway_entryway_lock');
+    assert.deepEqual(JSON.parse(lock.body), { connected: true, known: true, state: 'locked' });
+    assert.equal(lock.body.indexOf(TOKEN), -1);
+    assert.equal(lock.body.indexOf('Entryway'), -1);
+    var lockView = doors.resolveDoor({
+      name: 'Front Door',
+      kind: 'lock',
+      source: 'homeassistant',
+      entityId: 'lock.entryway_entryway_lock'
+    }, { connected: true, known: true, value: JSON.parse(lock.body).state });
+    assert.equal(lockView.label, 'Locked');
+    assert.equal(lockView.attention, false);
 
     var unavailable = await request(sitePort, 'GET', '/homeassistant/state?entity=cover.missing');
     assert.deepEqual(JSON.parse(unavailable.body), { connected: true, known: false });

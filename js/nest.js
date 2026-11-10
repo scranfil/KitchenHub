@@ -851,6 +851,69 @@
       return frame;
     }
 
+    var climateState = null;
+
+    function climateId() {
+      var block = util.cfg && util.cfg.climate ? util.cfg.climate : {};
+      var id = String(block.entityId == null ? '' : block.entityId).replace(/^\s+|\s+$/g, '');
+      var api = window.KH && window.KH.doors;
+      if (!api || typeof api.entityIdOk !== 'function' || !api.entityIdOk(id)) {
+        return '';
+      }
+      return id;
+    }
+
+    function fillHaThermostat(root) {
+      util.emptyEl(root);
+      root.appendChild(el('div', 'panel-kicker', 'Thermostat'));
+      var view = window.KH.climate && window.KH.climate.climateView
+        ? window.KH.climate.climateView(climateState)
+        : { known: false, label: 'Unknown' };
+      if (!climateState) {
+        root.appendChild(el('div', 'tile-status', 'Loading\u2026'));
+        return;
+      }
+      if (!view.known) {
+        root.appendChild(el('div', 'tile-status', view.label || 'Unknown'));
+        return;
+      }
+      root.appendChild(el('div', 'tile-name', view.name));
+      root.appendChild(el('div', 'tile-temp', view.ambientText));
+      root.appendChild(el('div', 'tile-meta', view.line));
+      root.appendChild(el('div', 'tile-meta', view.setpoint));
+    }
+
+    function refreshClimate() {
+      var id = climateId();
+      if (!id || sampleOn()) {
+        return;
+      }
+      fetch('homeassistant/state?entity=' + encodeURIComponent(id), { cache: 'no-store' }).then(function (res) {
+        var type = (res.headers.get('content-type') || '').toLowerCase();
+        if (!res.ok || type.indexOf('json') === -1) {
+          return { connected: false };
+        }
+        return res.json();
+      }).then(function (data) {
+        if (!data || data.connected === false) {
+          climateState = { connected: false };
+        } else if (!data.known) {
+          climateState = { connected: true, known: false };
+        } else {
+          climateState = data;
+          climateState.connected = true;
+          climateState.known = true;
+        }
+        render();
+      }).catch(function () {
+        climateState = { connected: false };
+        render();
+      }).then(function () {
+        var minutes = (util.cfg.refreshMinutes && util.cfg.refreshMinutes.nest) || 2;
+        util.schedule('climate', refreshClimate, util.jitterMs(minutes));
+      });
+    }
+
     function fillThermostat(root) {
       util.emptyEl(root);
       root.appendChild(el('div', 'panel-kicker', 'Thermostat'));
@@ -911,7 +974,9 @@
           fillDoors(door);
         }
         if (thermo) {
-          if (!sampleOn() && !nestConfigured(cfg)) {
+          if (!sampleOn() && climateId()) {
+            fillHaThermostat(thermo);
+          } else if (!sampleOn() && !nestConfigured(cfg)) {
             notConnected(thermo, 'Thermostat', cfg);
           } else {
             fillThermostat(thermo);
@@ -982,6 +1047,7 @@
         applySample();
         return;
       }
+      refreshClimate();
       var cfg = settings();
       if (!nestConfigured(cfg)) {
         warning = '';
@@ -1467,6 +1533,7 @@
       var cfg = settings();
       if (!nestConfigured(cfg)) {
         phase = 'setup';
+        refreshClimate();
         render();
         return;
       }

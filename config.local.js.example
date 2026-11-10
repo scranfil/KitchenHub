@@ -33,4 +33,8 @@
   // if (cfg.doors && cfg.doors[1]) {
   //   cfg.doors[1].entityId = 'cover.garage_door';
   // }
+  // Thermostat status. This is the Home Assistant climate entity id, not a secret.
+  cfg.climate = {
+    entityId: ''
+  };
 })();

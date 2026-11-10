@@ -500,7 +500,18 @@ function handleHomeAssistant(req, res, ctx, pathname, parsed) {
       jsonSend(res, 200, { connected: true, known: false });
       return;
     }
-    jsonSend(res, 200, { connected: true, known: true, state: reading.value });
+    var payload = { connected: true, known: true, state: reading.value };
+    var extras = doorState.haClimateExtras(entity, data);
+    if (extras) {
+      var extraKeys = Object.keys(extras);
+      var index;
+      for (index = 0; index < extraKeys.length; index++) {
+        if (extras[extraKeys[index]] != null && extras[extraKeys[index]] !== '') {
+          payload[extraKeys[index]] = extras[extraKeys[index]];
+        }
+      }
+    }
+    jsonSend(res, 200, payload);
   }).catch(function () {
     jsonSend(res, 200, { connected: true, known: false });
   });
