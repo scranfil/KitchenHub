@@ -37,4 +37,11 @@
   cfg.climate = {
     entityId: 'climate.hallway_hallway_thermostat'
   };
+  cfg.lights = {
+    entityIds: [
+      'light.kitchen_kitchen',
+      'light.office_office',
+      'light.backyard_backyard'
+    ]
+  };
 })();

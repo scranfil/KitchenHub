@@ -37,6 +37,14 @@ window.KH_CONFIG = {
   climate: {
     entityId: "climate.hallway_hallway_thermostat"
   },
+  // Light status from Home Assistant. Empty entityIds falls back to Hue pairing.
+  lights: {
+    entityIds: [
+      "light.kitchen_kitchen",
+      "light.office_office",
+      "light.backyard_backyard"
+    ]
+  },
   smartthings: {
     token: "",
     lockName: "front"

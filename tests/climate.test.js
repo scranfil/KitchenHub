@@ -14,6 +14,26 @@ const HEAT = {
   name: 'Hallway'
 };
 
+test('the hallway thermostat idle at 67 shows heat to 67', function () {
+  var view = climate.climateView({
+    connected: true,
+    known: true,
+    state: 'heat',
+    current_temperature: 67,
+    temperature: 67,
+    hvac_action: 'idle',
+    name: 'Hallway Thermostat'
+  });
+  assert.equal(view.known, true);
+  assert.equal(view.name, 'Hallway Thermostat');
+  assert.equal(view.ambient, 67);
+  assert.equal(view.ambientText, '67°');
+  assert.equal(view.mode, 'heat');
+  assert.equal(view.actionLabel, 'Idle');
+  assert.equal(view.line, 'Heat · Idle');
+  assert.equal(view.setpoint, 'Heat to 67°');
+});
+
 test('a heating climate shows the room temperature and the heat setpoint', function () {
   var view = climate.climateView(HEAT);
   assert.equal(view.known, true);

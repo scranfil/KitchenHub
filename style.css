@@ -1072,6 +1072,21 @@ a.tile-action {
   opacity: 0.55;
 }
 
+.hue-row.is-status {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.hue-state {
+  font-size: 2.2vh;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.hue-row.is-neutral .hue-state {
+  color: var(--muted);
+  font-weight: 650;
+}
+
 .hue-toggle {
   height: 4vh;
   padding: 0;

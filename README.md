@@ -150,7 +150,9 @@ Copy `homeassistant.json.example` to `homeassistant.json` on the computer that r
 
 Ring, motion, the snapshot, **Live view**, and **Setup** stay attached to the front door. `?unlocked=1` highlights the front door. `?garage=open` highlights the garage.
 
-The thermostat tile reads one Home Assistant climate entity through that same server. Set `climate.entityId` in `config.js` or `config.local.js` (`climate.hallway_hallway_thermostat`, the Hallway Thermostat). The tile shows the current temperature, the mode, whether it is heating or cooling, and the setpoint. It does not change the setpoint. Until that id is set, the tile still uses the Nest thermostat above. An unread climate entity says **Not connected** or **Unknown**.
+The thermostat tile reads one Home Assistant climate entity through that same server. `climate.entityId` is `climate.hallway_hallway_thermostat` (Hallway Thermostat). The tile shows the current temperature, the mode, whether it is heating or cooling, and the setpoint. It does not change the setpoint. If that id is empty, the tile still uses the Nest thermostat. An unread climate entity says **Not connected** or **Unknown**.
+
+The lights tile reads `lights.entityIds` through that same server. The default is `light.kitchen_kitchen` (Kitchen), `light.office_office` (office), and `light.backyard_backyard` (backyard). Each row shows on or off, and the brightness when Home Assistant sends it. There is no on/off control. A missing or unavailable light says **Unknown**. If the home server has no Home Assistant URL or token, the row says **Not connected**. An empty `entityIds` list leaves the Hue pairing screen below.
 
 ### Hue
 
