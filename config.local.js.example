@@ -33,7 +33,8 @@
   // if (cfg.doors && cfg.doors[1]) {
   //   cfg.doors[1].entityId = 'cover.garage_door';
   // }
-  // Contact sensors default to binary_sensor.kitchen_sliding_door (Kitchen Door)
+  // Contact sensors default to binary_sensor.front_door (Front Door),
+  // binary_sensor.kitchen_sliding_door (Kitchen Door),
   // and binary_sensor.basement_door (Basement Door). On is open.
   // Thermostat status. This is the Home Assistant climate entity id, not a secret.
   cfg.climate = {
