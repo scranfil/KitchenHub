@@ -97,6 +97,33 @@ test('wall clock reload catches a missed 3:00 and a 26 hour freeze', function ()
   assert.equal(presence.shouldReload(loaded, loaded + 60 * 60 * 1000, '03:00', tz, 30 * 60 * 1000), true);
 });
 
+test('a frozen clock or an overdue feed asks for a reload', function () {
+  var stale = 3 * 60 * 1000;
+  var painted = Date.parse('2026-11-10T17:01:00.000Z');
+  assert.equal(presence.shouldWakeReload(painted, painted + 2 * 60 * 1000, stale), false);
+  assert.equal(presence.shouldWakeReload(painted, painted + 3 * 60 * 1000, stale), true);
+  assert.equal(presence.shouldWakeReload(painted, painted + 15 * 60 * 1000, stale), true);
+  assert.equal(presence.shouldWakeReload(painted, painted - 1000, stale), false);
+  assert.equal(presence.shouldWakeReload(null, painted, stale), false);
+
+  var weatherEvery = 15 * 60 * 1000;
+  assert.equal(presence.dataIsStale(painted, painted + 16 * 60 * 1000, weatherEvery, stale), false);
+  assert.equal(presence.dataIsStale(painted, painted + 18 * 60 * 1000, weatherEvery, stale), true);
+  assert.equal(presence.dataIsStale(null, painted + 60 * 60 * 1000, weatherEvery, stale), false);
+
+  var grace = 3 * 60 * 1000;
+  assert.equal(presence.pollIsOverdue(painted, painted + 4 * 60 * 1000, 4 * 60 * 1000, grace), false);
+  assert.equal(presence.pollIsOverdue(painted, painted + 8 * 60 * 1000, 4 * 60 * 1000, grace), true);
+  assert.equal(presence.pollIsOverdue(painted, painted + 2 * 60 * 1000, 20000, grace), false);
+  assert.equal(presence.pollIsOverdue(painted, painted + 4 * 60 * 1000, 20000, grace), true);
+  assert.equal(presence.pollIsOverdue(0, painted + 10 * 60 * 1000, 20000, grace), false);
+
+  var gap = 10 * 60 * 1000;
+  assert.equal(presence.reloadAllowed(0, painted, gap), true);
+  assert.equal(presence.reloadAllowed(painted, painted + 5 * 60 * 1000, gap), false);
+  assert.equal(presence.reloadAllowed(painted, painted + 10 * 60 * 1000, gap), true);
+});
+
 test('a paused camera with a live track should play again', function () {
   assert.equal(presence.cameraAction(true, 'live'), 'play');
   assert.equal(presence.cameraAction(false, 'live'), 'ok');

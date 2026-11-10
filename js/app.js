@@ -4,8 +4,13 @@
   var KH = window.KH || (window.KH = {});
   var util = KH.util;
   var TAP_DEBOUNCE_MS = 30000;
+  var STALE_MS = 3 * 60 * 1000;
+  var RELOAD_GAP_MS = 10 * 60 * 1000;
+  var STALE_RELOAD_KEY = 'kh:stale-reload';
   var lastTap = 0;
   var bootAt = Date.now();
+  var lastPaintMs = Date.now();
+  var lastNudgeMs = 0;
   var statusTimes = { weather: null, news: null };
 
   KH.status = {
@@ -42,28 +47,156 @@
     );
   }
 
+  function notePaint() {
+    lastPaintMs = Date.now();
+  }
+
+  function panelIsStale(name, minutes) {
+    var saved = statusTimes[name];
+    if (!saved || !KH.presence || typeof KH.presence.dataIsStale !== 'function') {
+      return false;
+    }
+    return KH.presence.dataIsStale(saved, Date.now(), (Number(minutes) || 0) * 60000, STALE_MS);
+  }
+
+  function updatesAreStale() {
+    if (KH.presence && typeof KH.presence.shouldWakeReload === 'function') {
+      if (KH.presence.shouldWakeReload(lastPaintMs, Date.now(), STALE_MS)) {
+        return true;
+      }
+      if (KH.doors && typeof KH.doors.lastPoll === 'function' && typeof KH.doors.scheduledDelay === 'function' && typeof KH.presence.pollIsOverdue === 'function') {
+        var polled = KH.doors.lastPoll();
+        if (KH.presence.pollIsOverdue(polled, Date.now(), KH.doors.scheduledDelay(), STALE_MS)) {
+          return true;
+        }
+      }
+    }
+    var mins = util.cfg.refreshMinutes || {};
+    return panelIsStale('weather', mins.observation || 15) || panelIsStale('news', mins.news || 15);
+  }
+
+  function refreshLiveData() {
+    if (KH.weather && KH.weather.refresh) {
+      KH.weather.refresh();
+    }
+    if (KH.alerts && KH.alerts.refresh) {
+      KH.alerts.refresh();
+    }
+    if (KH.news && KH.news.refresh) {
+      KH.news.refresh();
+    }
+    if (KH.scores && KH.scores.refresh) {
+      KH.scores.refresh();
+    }
+    if (KH.nest && KH.nest.refresh) {
+      KH.nest.refresh();
+    }
+    if (KH.hue && KH.hue.refresh) {
+      KH.hue.refresh();
+    }
+    if (KH.smartthings && KH.smartthings.refresh) {
+      KH.smartthings.refresh();
+    }
+    if (KH.doors && KH.doors.refresh) {
+      KH.doors.refresh();
+    }
+  }
+
+  function lastStaleReload() {
+    try {
+      return Number(sessionStorage.getItem(STALE_RELOAD_KEY)) || 0;
+    } catch (err) {
+      return 0;
+    }
+  }
+
+  function reloadBecauseStale() {
+    var now = Date.now();
+    if (KH.presence && typeof KH.presence.reloadAllowed === 'function' && !KH.presence.reloadAllowed(lastStaleReload(), now, RELOAD_GAP_MS)) {
+      return;
+    }
+    try {
+      sessionStorage.setItem(STALE_RELOAD_KEY, String(now));
+    } catch (err) {
+      console.error('[wake]', err);
+    }
+    hardReload();
+  }
+
+  // The page's setTimeout queue is what froze. A worker timer is a different
+  // queue: its postMessage still arrives if the page can run tasks at all.
+  function startHeartbeat() {
+    function onTick() {
+      if (updatesAreStale()) {
+        reloadBecauseStale();
+      }
+    }
+    try {
+      var blob = new Blob([
+        'setInterval(function(){postMessage(1)},30000);'
+      ], { type: 'application/javascript' });
+      var worker = new Worker(URL.createObjectURL(blob));
+      worker.onmessage = onTick;
+    } catch (err) {
+      console.error('[wake]', err);
+      setInterval(onTick, 30000);
+    }
+  }
+
+  // Chrome on this tablet can drop its timer queue. The clock, the feeds, and
+  // the door poll are all setTimeout chains, so once the queue is gone nothing
+  // inside it can notice. The worker heartbeat can. A tab focus or freeze
+  // resume can too.
+  function wake(nudge) {
+    if (updatesAreStale()) {
+      reloadBecauseStale();
+      return;
+    }
+    if (!nudge || Date.now() - bootAt < 20000) {
+      return;
+    }
+    renderClock();
+    if (Date.now() - lastNudgeMs < 30000) {
+      return;
+    }
+    lastNudgeMs = Date.now();
+    refreshLiveData();
+  }
+
   function renderClock() {
     // Chrome on this tablet can freeze timers for hours while the panel stays
     // dim on stale data. A wall-clock gap means the page must start over.
-    if (util.detectClockJump()) {
-      hardReload();
-      return;
+    var reloading = false;
+    var delay = 60000;
+    try {
+      if (util.detectClockJump()) {
+        reloading = true;
+        hardReload();
+        return;
+      }
+      if (reloadDue()) {
+        reloading = true;
+        hardReload();
+        return;
+      }
+      var n = util.now();
+      var cfg = util.cfg.clock || {};
+      var parts = util.formatTime(n, { hour12: cfg.hour12 !== false, seconds: !!cfg.showSeconds });
+      util.setText(util.$('clock-hhmm'), parts.hour + ':' + parts.minute + (cfg.showSeconds ? ':' + parts.second : ''));
+      util.setText(util.$('clock-ampm'), parts.dayPeriod);
+      util.setText(util.$('clock-date'), util.formatDate(n));
+      notePaint();
+      delay = cfg.showSeconds ? util.msUntilNextSecond(new Date()) : util.msUntilNextMinute(new Date());
+      if (delay < 20) {
+        delay += cfg.showSeconds ? 1000 : 60000;
+      }
+    } catch (err) {
+      console.error('[clock]', err);
+    } finally {
+      if (!reloading) {
+        util.schedule('clock', renderClock, delay);
+      }
     }
-    if (reloadDue()) {
-      hardReload();
-      return;
-    }
-    var n = util.now();
-    var cfg = util.cfg.clock || {};
-    var parts = util.formatTime(n, { hour12: cfg.hour12 !== false, seconds: !!cfg.showSeconds });
-    util.setText(util.$('clock-hhmm'), parts.hour + ':' + parts.minute + (cfg.showSeconds ? ':' + parts.second : ''));
-    util.setText(util.$('clock-ampm'), parts.dayPeriod);
-    util.setText(util.$('clock-date'), util.formatDate(n));
-    var delay = cfg.showSeconds ? util.msUntilNextSecond(new Date()) : util.msUntilNextMinute(new Date());
-    if (delay < 20) {
-      delay += cfg.showSeconds ? 1000 : 60000;
-    }
-    util.schedule('clock', renderClock, delay);
   }
 
   function renderStatus() {
@@ -238,6 +371,21 @@
     document.addEventListener('click', onTap);
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', renderStatus);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') {
+        wake(true);
+      }
+    });
+    window.addEventListener('focus', function () {
+      wake(true);
+    });
+    window.addEventListener('pageshow', function () {
+      wake(true);
+    });
+    document.addEventListener('resume', function () {
+      wake(true);
+    });
+    startHeartbeat();
 
     util.onReschedule(function () {
       renderClock();

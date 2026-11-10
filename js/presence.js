@@ -306,6 +306,76 @@
   exports.cameraAction = cameraAction;
   exports.msUntilReload = msUntilReload;
   exports.shouldReload = shouldReload;
+
+  // True when a painted clock or a finished poll is older than the limit.
+  // The limit is a few minutes, so a normal refresh interval does not trip it.
+  function shouldWakeReload(lastTickMs, nowMs, staleMs) {
+    var last = Number(lastTickMs);
+    var now = Number(nowMs);
+    var stale = Number(staleMs);
+    if (!isFinite(last) || !isFinite(now) || !isFinite(stale) || stale < 1000 || last <= 0) {
+      return false;
+    }
+    if (now < last) {
+      return false;
+    }
+    return now - last >= stale;
+  }
+
+  // Data is stale once it is older than its refresh interval plus a grace period.
+  function dataIsStale(savedAtMs, nowMs, intervalMs, graceMs) {
+    var saved = Number(savedAtMs);
+    var now = Number(nowMs);
+    if (!isFinite(saved) || !isFinite(now) || saved <= 0 || now < saved) {
+      return false;
+    }
+    var interval = Number(intervalMs);
+    var grace = Number(graceMs);
+    if (isNaN(interval) || interval < 0) {
+      interval = 0;
+    }
+    if (isNaN(grace) || grace < 0) {
+      grace = 0;
+    }
+    return now - saved >= interval + grace;
+  }
+
+  // A door poll is overdue only after its own scheduled wait, plus grace.
+  // Backoff during an outage is that wait, so it is not a missed timer.
+  function pollIsOverdue(lastPollMs, nowMs, scheduledDelayMs, graceMs) {
+    var last = Number(lastPollMs);
+    var now = Number(nowMs);
+    var delay = Number(scheduledDelayMs);
+    var grace = Number(graceMs);
+    if (!isFinite(last) || last <= 0 || !isFinite(now) || now < last) {
+      return false;
+    }
+    if (!isFinite(delay) || delay < 0) {
+      delay = 0;
+    }
+    if (!isFinite(grace) || grace < 0) {
+      grace = 0;
+    }
+    return now - last >= delay + grace;
+  }
+
+  function reloadAllowed(lastReloadMs, nowMs, gapMs) {
+    var last = Number(lastReloadMs);
+    var now = Number(nowMs);
+    var gap = Number(gapMs);
+    if (!isFinite(now) || !isFinite(gap) || gap < 0) {
+      return false;
+    }
+    if (!isFinite(last) || last <= 0) {
+      return true;
+    }
+    return now - last >= gap;
+  }
+
+  exports.shouldWakeReload = shouldWakeReload;
+  exports.dataIsStale = dataIsStale;
+  exports.pollIsOverdue = pollIsOverdue;
+  exports.reloadAllowed = reloadAllowed;
   exports.DEFAULT_IDLE_SECONDS = DEFAULT_IDLE_SECONDS;
 
   function attachBrowserApi() {

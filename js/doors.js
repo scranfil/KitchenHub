@@ -343,8 +343,15 @@
     }
 
     function fetchOne(door) {
+      var controller = typeof AbortController === 'function' ? new AbortController() : null;
+      var timer = setTimeout(function () {
+        if (controller) {
+          controller.abort();
+        }
+      }, 15000);
       return fetch('homeassistant/state?entity=' + encodeURIComponent(door.entityId), {
-        cache: 'no-store'
+        cache: 'no-store',
+        signal: controller ? controller.signal : undefined
       }).then(function (res) {
         var type = (res.headers.get('content-type') || '').toLowerCase();
         if (!res.ok || type.indexOf('json') === -1) {
@@ -352,6 +359,7 @@
         }
         return res.json();
       }).then(function (data) {
+        clearTimeout(timer);
         if (!data || data.connected === false) {
           return { connected: false };
         }
@@ -360,12 +368,17 @@
         }
         return { connected: true, known: true, value: String(data.state).toLowerCase() };
       }).catch(function () {
+        clearTimeout(timer);
         return { connected: false };
       });
     }
 
+    var lastPollMs = 0;
+    var scheduledDelayMs = 20000;
+
     function schedule(failCount) {
       var delay = failCount > 0 && util ? util.backoffMs(failCount) : 20000;
+      scheduledDelayMs = delay;
       if (util) {
         util.schedule('doors', refresh, delay);
       }
@@ -383,6 +396,7 @@
         if (pending > 0) {
           return;
         }
+        lastPollMs = Date.now();
         tell();
         schedule(failed ? 1 : 0);
       }
@@ -401,6 +415,12 @@
     }
 
     exports.readingFor = readingFor;
+    exports.lastPoll = function () {
+      return lastPollMs;
+    };
+    exports.scheduledDelay = function () {
+      return scheduledDelayMs;
+    };
     exports.refresh = refresh;
     exports.init = function () {
       refresh();

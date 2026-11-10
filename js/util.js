@@ -128,7 +128,11 @@
     clearTimer(name);
     timers[name] = setTimeout(function () {
       timers[name] = null;
-      fn();
+      try {
+        fn();
+      } catch (err) {
+        console.error('[scheduler]', name, err);
+      }
     }, delayMs);
   }
 
