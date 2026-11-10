@@ -124,6 +124,46 @@
     };
   }
 
+  var TAB_SPECS = [
+    { id: 'front', label: 'Front' },
+    { id: 'kitchen', label: 'Kitchen' },
+    { id: 'basement', label: 'Basement' },
+    { id: 'garage', label: 'Garage 1' }
+  ];
+
+  function doorTabs(list) {
+    var byId = {};
+    var doors = list || [];
+    var i;
+    for (i = 0; i < doors.length; i++) {
+      if (doors[i] && doors[i].id) {
+        byId[doors[i].id] = doors[i];
+      }
+    }
+    var out = [];
+    for (i = 0; i < TAB_SPECS.length; i++) {
+      if (byId[TAB_SPECS[i].id]) {
+        out.push({
+          id: TAB_SPECS[i].id,
+          label: TAB_SPECS[i].label,
+          door: byId[TAB_SPECS[i].id]
+        });
+      }
+    }
+    return out;
+  }
+
+  function defaultDoorTab(tabs) {
+    var list = tabs || [];
+    var i;
+    for (i = 0; i < list.length; i++) {
+      if (list[i].id === 'front') {
+        return 'front';
+      }
+    }
+    return list.length ? list[0].id : '';
+  }
+
   function rowClass(view) {
     if (view && view.attention) {
       return 'door-row is-attention';
@@ -205,6 +245,8 @@
   exports.entityIdOk = entityIdOk;
   exports.doorList = doorList;
   exports.resolveDoor = resolveDoor;
+  exports.doorTabs = doorTabs;
+  exports.defaultDoorTab = defaultDoorTab;
   exports.rowClass = rowClass;
   exports.haReading = haReading;
   exports.haClimateExtras = haClimateExtras;

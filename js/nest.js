@@ -749,6 +749,8 @@
       }
     }
 
+    var selectedDoor = 'front';
+
     function fillDoors(root) {
       util.emptyEl(root);
       root.classList.remove('is-unlocked');
@@ -756,18 +758,57 @@
       root.appendChild(el('div', 'panel-kicker', 'Doors'));
       var api = window.KH && window.KH.doors;
       var list = api && api.doorList ? api.doorList(util.cfg) : [];
-      var i;
-      var cameraOn = false;
-      for (i = 0; i < list.length; i++) {
-        root.appendChild(doorRowEl(list[i], api));
-        if (!cameraOn && list[i].kind === 'lock') {
-          appendDoorbell(root);
-          cameraOn = true;
-        }
+      var tabs = api && api.doorTabs ? api.doorTabs(list) : [];
+      var chosen = selectedDoor;
+      if (!tabById(tabs, chosen)) {
+        chosen = api && api.defaultDoorTab ? api.defaultDoorTab(tabs) : 'front';
+        selectedDoor = chosen;
       }
-      if (!cameraOn) {
+      root.appendChild(tabStrip(tabs, api, chosen));
+      var current = tabById(tabs, chosen);
+      if (!current) {
+        return;
+      }
+      root.appendChild(doorRowEl(current.door, api));
+      if (current.id === 'front') {
         appendDoorbell(root);
       }
+    }
+
+    function tabById(tabs, id) {
+      var i;
+      for (i = 0; i < tabs.length; i++) {
+        if (tabs[i].id === id) {
+          return tabs[i];
+        }
+      }
+      return null;
+    }
+
+    function tabStrip(tabs, api, chosen) {
+      var strip = el('div', 'door-tabs');
+      strip.setAttribute('role', 'tablist');
+      strip.setAttribute('aria-label', 'Doors');
+      var i;
+      for (i = 0; i < tabs.length; i++) {
+        var tab = tabs[i];
+        var reading = api && api.readingFor ? api.readingFor(tab.door) : null;
+        var view = api && api.resolveDoor ? api.resolveDoor(tab.door, reading) : { attention: false };
+        var selected = tab.id === chosen;
+        var btn = el('button', 'door-tab' + (selected ? ' is-selected' : '') + (view.attention ? ' is-attention' : ''));
+        btn.type = 'button';
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+        btn.setAttribute('data-door-tab', tab.id);
+        btn.appendChild(document.createTextNode(tab.label));
+        if (view.attention) {
+          var mark = el('span', 'door-tab-mark');
+          mark.setAttribute('aria-hidden', 'true');
+          btn.appendChild(mark);
+        }
+        strip.appendChild(btn);
+      }
+      return strip;
     }
 
     function doorRowEl(door, api) {
@@ -785,22 +826,10 @@
     }
 
     function appendDoorbell(root) {
-      var block = el('div', 'door-camera');
-      var cfg = settings();
-      if (!sampleOn() && !nestConfigured(cfg)) {
-        var button = el('button', 'tile-action', 'Setup');
-        button.type = 'button';
-        button.setAttribute('data-nest-setup', '1');
-        block.appendChild(button);
-        var labels = missingLabels(cfg);
-        if (labels.length && labels.length < REQUIRED.length) {
-          appendHelp(block, ['Still needed: ' + labels.join(', ') + '.']);
-        } else {
-          appendHelp(block, ['Doorbell setup is in the README.']);
-        }
-        root.appendChild(block);
+      if (!sampleOn() && !nestConfigured(settings())) {
         return;
       }
+      var block = el('div', 'door-camera');
       if (!doorbell) {
         if (phase === 'ready') {
           block.appendChild(el('div', 'tile-status', 'No doorbell'));
@@ -1423,6 +1452,13 @@
     function onHomeClick(ev) {
       var node = ev.target;
       while (node && node.id !== 'home') {
+        if (node.getAttribute && node.getAttribute('data-door-tab')) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          selectedDoor = node.getAttribute('data-door-tab');
+          render();
+          return;
+        }
         if (node.getAttribute && node.getAttribute('data-nest-setup')) {
           ev.preventDefault();
           ev.stopPropagation();
