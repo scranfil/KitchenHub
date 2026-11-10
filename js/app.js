@@ -4,8 +4,11 @@
   var KH = window.KH || (window.KH = {});
   var util = KH.util;
   var TAP_DEBOUNCE_MS = 30000;
+  var STALE_MS = 3 * 60 * 1000;
   var lastTap = 0;
   var bootAt = Date.now();
+  var lastPaintMs = Date.now();
+  var lastNudgeMs = 0;
   var statusTimes = { weather: null, news: null };
 
   KH.status = {
@@ -42,28 +45,125 @@
     );
   }
 
+  function notePaint() {
+    lastPaintMs = Date.now();
+  }
+
+  function panelIsStale(name, minutes) {
+    var saved = statusTimes[name];
+    if (!saved || !KH.presence || typeof KH.presence.dataIsStale !== 'function') {
+      return false;
+    }
+    return KH.presence.dataIsStale(saved, Date.now(), (Number(minutes) || 0) * 60000, STALE_MS);
+  }
+
+  function updatesAreStale() {
+    if (KH.presence && typeof KH.presence.shouldWakeReload === 'function') {
+      if (KH.presence.shouldWakeReload(lastPaintMs, Date.now(), STALE_MS)) {
+        return true;
+      }
+      if (KH.doors && typeof KH.doors.lastPoll === 'function') {
+        var polled = KH.doors.lastPoll();
+        if (polled && KH.presence.shouldWakeReload(polled, Date.now(), STALE_MS)) {
+          return true;
+        }
+      }
+    }
+    var mins = util.cfg.refreshMinutes || {};
+    return panelIsStale('weather', mins.observation || 15) || panelIsStale('news', mins.news || 15);
+  }
+
+  function refreshLiveData() {
+    if (KH.weather && KH.weather.refresh) {
+      KH.weather.refresh();
+    }
+    if (KH.alerts && KH.alerts.refresh) {
+      KH.alerts.refresh();
+    }
+    if (KH.news && KH.news.refresh) {
+      KH.news.refresh();
+    }
+    if (KH.scores && KH.scores.refresh) {
+      KH.scores.refresh();
+    }
+    if (KH.nest && KH.nest.refresh) {
+      KH.nest.refresh();
+    }
+    if (KH.hue && KH.hue.refresh) {
+      KH.hue.refresh();
+    }
+    if (KH.smartthings && KH.smartthings.refresh) {
+      KH.smartthings.refresh();
+    }
+    if (KH.doors && KH.doors.refresh) {
+      KH.doors.refresh();
+    }
+  }
+
+  // Chrome on this tablet can drop its timer queue. The clock, the feeds, and
+  // the door poll are all setTimeout chains, so once the queue is gone nothing
+  // inside it can notice. A late timer, a tab focus, or a freeze resume can.
+  function wake(nudge) {
+    if (updatesAreStale()) {
+      hardReload();
+      return;
+    }
+    if (!nudge || Date.now() - bootAt < 20000) {
+      return;
+    }
+    renderClock();
+    if (Date.now() - lastNudgeMs < 30000) {
+      return;
+    }
+    lastNudgeMs = Date.now();
+    refreshLiveData();
+    armWakeWatch();
+  }
+
+  function armWakeWatch() {
+    util.schedule('wake-watch', function tickWake() {
+      if (updatesAreStale()) {
+        hardReload();
+        return;
+      }
+      util.schedule('wake-watch', tickWake, 30000);
+    }, 30000);
+  }
+
   function renderClock() {
     // Chrome on this tablet can freeze timers for hours while the panel stays
     // dim on stale data. A wall-clock gap means the page must start over.
-    if (util.detectClockJump()) {
-      hardReload();
-      return;
+    var reloading = false;
+    var delay = 60000;
+    try {
+      if (util.detectClockJump()) {
+        reloading = true;
+        hardReload();
+        return;
+      }
+      if (reloadDue()) {
+        reloading = true;
+        hardReload();
+        return;
+      }
+      var n = util.now();
+      var cfg = util.cfg.clock || {};
+      var parts = util.formatTime(n, { hour12: cfg.hour12 !== false, seconds: !!cfg.showSeconds });
+      util.setText(util.$('clock-hhmm'), parts.hour + ':' + parts.minute + (cfg.showSeconds ? ':' + parts.second : ''));
+      util.setText(util.$('clock-ampm'), parts.dayPeriod);
+      util.setText(util.$('clock-date'), util.formatDate(n));
+      notePaint();
+      delay = cfg.showSeconds ? util.msUntilNextSecond(new Date()) : util.msUntilNextMinute(new Date());
+      if (delay < 20) {
+        delay += cfg.showSeconds ? 1000 : 60000;
+      }
+    } catch (err) {
+      console.error('[clock]', err);
+    } finally {
+      if (!reloading) {
+        util.schedule('clock', renderClock, delay);
+      }
     }
-    if (reloadDue()) {
-      hardReload();
-      return;
-    }
-    var n = util.now();
-    var cfg = util.cfg.clock || {};
-    var parts = util.formatTime(n, { hour12: cfg.hour12 !== false, seconds: !!cfg.showSeconds });
-    util.setText(util.$('clock-hhmm'), parts.hour + ':' + parts.minute + (cfg.showSeconds ? ':' + parts.second : ''));
-    util.setText(util.$('clock-ampm'), parts.dayPeriod);
-    util.setText(util.$('clock-date'), util.formatDate(n));
-    var delay = cfg.showSeconds ? util.msUntilNextSecond(new Date()) : util.msUntilNextMinute(new Date());
-    if (delay < 20) {
-      delay += cfg.showSeconds ? 1000 : 60000;
-    }
-    util.schedule('clock', renderClock, delay);
   }
 
   function renderStatus() {
@@ -238,6 +338,21 @@
     document.addEventListener('click', onTap);
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', renderStatus);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') {
+        wake(true);
+      }
+    });
+    window.addEventListener('focus', function () {
+      wake(true);
+    });
+    window.addEventListener('pageshow', function () {
+      wake(true);
+    });
+    document.addEventListener('resume', function () {
+      wake(true);
+    });
+    armWakeWatch();
 
     util.onReschedule(function () {
       renderClock();

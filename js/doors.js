@@ -364,6 +364,8 @@
       });
     }
 
+    var lastPollMs = 0;
+
     function schedule(failCount) {
       var delay = failCount > 0 && util ? util.backoffMs(failCount) : 20000;
       if (util) {
@@ -383,6 +385,7 @@
         if (pending > 0) {
           return;
         }
+        lastPollMs = Date.now();
         tell();
         schedule(failed ? 1 : 0);
       }
@@ -401,6 +404,9 @@
     }
 
     exports.readingFor = readingFor;
+    exports.lastPoll = function () {
+      return lastPollMs;
+    };
     exports.refresh = refresh;
     exports.init = function () {
       refresh();
