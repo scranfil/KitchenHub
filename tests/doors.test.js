@@ -1,5 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
 const doors = require('../js/doors.js');
 
 const FRONT = {
@@ -242,6 +244,31 @@ test('a contact sensor maps on and off without guessing', function () {
   var word = view(door, { connected: true, known: true, value: 'open' });
   assert.equal(word.label, 'Unknown');
   assert.equal(word.attention, false);
+});
+
+test('door tabs stay in Front, Kitchen, Basement, Garage 1 order', function () {
+  var tabs = doors.doorTabs(doors.doorList({}));
+  assert.deepEqual(tabs.map(function (tab) { return tab.label; }), ['Front', 'Kitchen', 'Basement', 'Garage 1']);
+  assert.deepEqual(tabs.map(function (tab) { return tab.id; }), ['front', 'kitchen', 'basement', 'garage']);
+  assert.equal(tabs[0].door.entityId, 'lock.entryway_entryway_lock');
+  assert.equal(tabs[1].door.entityId, 'binary_sensor.kitchen_sliding_door');
+  assert.equal(tabs[2].door.entityId, 'binary_sensor.basement_door');
+  assert.equal(tabs[3].door.kind, 'garage');
+  assert.equal(doors.defaultDoorTab(tabs), 'front');
+
+  var reversed = doors.doorTabs([
+    { id: 'garage', name: 'Garage door (main)', kind: 'garage' },
+    { id: 'basement', name: 'Basement Door', kind: 'contact' },
+    { id: 'kitchen', name: 'Kitchen Door', kind: 'contact' },
+    { id: 'front', name: 'Front Door', kind: 'lock' }
+  ]);
+  assert.deepEqual(reversed.map(function (tab) { return tab.id; }), ['front', 'kitchen', 'basement', 'garage']);
+  assert.equal(doors.defaultDoorTab([{ id: 'kitchen', label: 'Kitchen' }]), 'kitchen');
+});
+
+test('the doors tile does not prompt for doorbell setup', function () {
+  var src = fs.readFileSync(path.join(__dirname, '../js/nest.js'), 'utf8');
+  assert.equal(src.indexOf('Doorbell setup is in the README') === -1, true);
 });
 
 test('the door list keeps names and drops a bad entity id', function () {

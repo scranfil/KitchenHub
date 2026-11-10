@@ -1054,6 +1054,58 @@ a.tile-action {
   padding-bottom: 0.15vh;
 }
 
+.door-tabs {
+  display: flex;
+  gap: 0.4vw;
+  margin: 0 0 0.4vh;
+  flex: 0 0 auto;
+}
+
+.door-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.3vh 0.2vw;
+  border: 1px solid var(--line);
+  border-radius: 0.4vh;
+  background: var(--bg);
+  color: inherit;
+  font-family: inherit;
+  font-size: 2vh;
+  font-weight: 700;
+  line-height: 1.1;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.door-tab.is-selected {
+  background: var(--fg);
+  color: var(--bg);
+  border-color: var(--fg);
+}
+
+.door-tab:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 0.3vh;
+}
+
+.door-tab-mark {
+  display: inline-block;
+  width: 1.2vh;
+  height: 1.2vh;
+  min-width: 8px;
+  min-height: 8px;
+  margin-left: 0.35vw;
+  border-radius: 50%;
+  background: #9b1b1b;
+  vertical-align: middle;
+}
+
+.door-tab.is-selected .door-tab-mark {
+  background: #ffb4b4;
+}
+
 .door-shot {
   display: block;
   width: 100%;
