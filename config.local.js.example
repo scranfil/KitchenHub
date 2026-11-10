@@ -35,6 +35,6 @@
   // }
   // Thermostat status. This is the Home Assistant climate entity id, not a secret.
   cfg.climate = {
-    entityId: ''
+    entityId: 'climate.hallway_hallway_thermostat'
   };
 })();

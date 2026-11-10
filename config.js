@@ -35,7 +35,7 @@ window.KH_CONFIG = {
   ],
   // Thermostat status from Home Assistant. The URL and token stay in homeassistant.json.
   climate: {
-    entityId: ""
+    entityId: "climate.hallway_hallway_thermostat"
   },
   smartthings: {
     token: "",
