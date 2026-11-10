@@ -153,6 +153,36 @@
     return match[1].toLowerCase() + '://' + host + '/api/states/' + trim(entity);
   }
 
+  function climateNumber(value) {
+    if (value == null || value === '' || isNaN(Number(value))) {
+      return null;
+    }
+    return Math.round(Number(value) * 10) / 10;
+  }
+
+  function haClimateExtras(entity, body) {
+    if (trim(entity).toLowerCase().indexOf('climate.') !== 0) {
+      return null;
+    }
+    var attrs = body && body.attributes && typeof body.attributes === 'object' ? body.attributes : {};
+    function text(key, max) {
+      var value = trim(attrs[key]);
+      if (!value) {
+        return '';
+      }
+      return value.slice(0, max);
+    }
+    return {
+      current_temperature: climateNumber(attrs.current_temperature),
+      temperature: climateNumber(attrs.temperature),
+      target_temp_high: climateNumber(attrs.target_temp_high),
+      target_temp_low: climateNumber(attrs.target_temp_low),
+      hvac_action: text('hvac_action', 24).toLowerCase(),
+      temperature_unit: text('temperature_unit', 8),
+      name: text('friendly_name', 40)
+    };
+  }
+
   function lockReadingToState(parsed) {
     if (!parsed || !parsed.known) {
       return { connected: true, known: false, value: '' };
@@ -170,6 +200,7 @@
   exports.resolveDoor = resolveDoor;
   exports.rowClass = rowClass;
   exports.haReading = haReading;
+  exports.haClimateExtras = haClimateExtras;
   exports.haStateUrl = haStateUrl;
   exports.lockReadingToState = lockReadingToState;
 

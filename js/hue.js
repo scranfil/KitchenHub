@@ -258,6 +258,20 @@
       return !!(util.query && util.query.sample);
     }
 
+    var haReadings = {};
+
+    function haLightIds() {
+      var api = window.KH && window.KH.lights;
+      if (!api || typeof api.lightIds !== 'function') {
+        return [];
+      }
+      return api.lightIds(util.cfg);
+    }
+
+    function haLightsOn() {
+      return !sampleOn() && haLightIds().length > 0;
+    }
+
     function useHub() {
       var hub = window.KH && window.KH.smartthings;
       return !!(hub && hub.configured && hub.configured());
@@ -367,6 +381,10 @@
         }
         util.emptyEl(root);
         root.appendChild(el('div', 'panel-kicker', 'Lights'));
+        if (haLightsOn()) {
+          renderHaLights(root);
+          return;
+        }
         if (sampleOn()) {
           rooms = rooms.length ? rooms : sampleRooms();
           renderRooms(root);
@@ -403,6 +421,80 @@
           root.appendChild(el('p', 'tile-help', warning));
         }
       });
+    }
+
+    function renderHaLights(root) {
+      var api = window.KH && window.KH.lights;
+      var ids = haLightIds();
+      var scroller = el('div', 'tile-scroll');
+      var i;
+      for (i = 0; i < ids.length; i++) {
+        scroller.appendChild(haLightRow(ids[i], api));
+      }
+      root.appendChild(scroller);
+    }
+
+    function haLightRow(id, api) {
+      var stored = haReadings[id];
+      var view;
+      if (!stored) {
+        view = {
+          name: api && api.nameFromId ? api.nameFromId(id) : id,
+          label: 'Loading\u2026',
+          known: false,
+          percent: null
+        };
+      } else {
+        view = api.lightView(id, stored);
+      }
+      var row = el('div', 'hue-row is-status' + (view.known ? '' : ' is-neutral'));
+      row.appendChild(el('div', 'hue-name', view.name));
+      row.appendChild(el('div', 'hue-state', view.label));
+      if (view.percent != null) {
+        row.appendChild(el('span', 'hue-pct', view.percent + '%'));
+      }
+      return row;
+    }
+
+    function refreshHaLights() {
+      var ids = haLightIds();
+      if (!ids.length || sampleOn()) {
+        return;
+      }
+      var pending = ids.length;
+      function done() {
+        pending -= 1;
+        if (pending > 0) {
+          return;
+        }
+        render();
+        var minutes = (util.cfg.refreshMinutes && util.cfg.refreshMinutes.hue) || 1;
+        util.schedule('ha-lights', refreshHaLights, util.jitterMs(minutes));
+      }
+      var i;
+      for (i = 0; i < ids.length; i++) {
+        (function (id) {
+          fetch('homeassistant/state?entity=' + encodeURIComponent(id), { cache: 'no-store' }).then(function (res) {
+            var type = (res.headers.get('content-type') || '').toLowerCase();
+            if (!res.ok || type.indexOf('json') === -1) {
+              return { connected: false };
+            }
+            return res.json();
+          }).then(function (data) {
+            if (!data || data.connected === false) {
+              haReadings[id] = { connected: false };
+            } else if (!data.known) {
+              haReadings[id] = { connected: true, known: false, name: data.name || '' };
+            } else {
+              data.connected = true;
+              data.known = true;
+              haReadings[id] = data;
+            }
+          }).catch(function () {
+            haReadings[id] = { connected: false };
+          }).then(done);
+        })(ids[i]);
+      }
     }
 
     function renderRooms(root) {
@@ -884,6 +976,11 @@
         render();
         return;
       }
+      if (haLightsOn()) {
+        render();
+        refreshHaLights();
+        return;
+      }
       if (useHub()) {
         render();
         return;
@@ -909,7 +1006,7 @@
     exports.repaint = render;
 
     exports.applyHubRooms = function (next, errMsg) {
-      if (sampleOn()) {
+      if (sampleOn() || haLightsOn()) {
         return;
       }
       if (errMsg) {
@@ -924,6 +1021,10 @@
     exports.refresh = function () {
       if (sampleOn()) {
         render();
+        return;
+      }
+      if (haLightsOn()) {
+        refreshHaLights();
         return;
       }
       if (useHub()) {
