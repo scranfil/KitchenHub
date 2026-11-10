@@ -764,13 +764,17 @@
         chosen = api && api.defaultDoorTab ? api.defaultDoorTab(tabs) : 'front';
         selectedDoor = chosen;
       }
-      root.appendChild(tabStrip(tabs, api, chosen));
+      root.appendChild(tabStrip(tabs, api, chosen, list));
       var current = tabById(tabs, chosen);
       if (!current) {
         return;
       }
       root.appendChild(doorRowEl(current.door, api));
       if (current.id === 'front') {
+        var contact = api && api.doorById ? api.doorById(list, 'front-contact') : null;
+        if (contact) {
+          root.appendChild(doorRowEl(contact, api));
+        }
         appendDoorbell(root);
       }
     }
@@ -785,7 +789,7 @@
       return null;
     }
 
-    function tabStrip(tabs, api, chosen) {
+    function tabStrip(tabs, api, chosen, list) {
       var strip = el('div', 'door-tabs');
       strip.setAttribute('role', 'tablist');
       strip.setAttribute('aria-label', 'Doors');
@@ -794,14 +798,23 @@
         var tab = tabs[i];
         var reading = api && api.readingFor ? api.readingFor(tab.door) : null;
         var view = api && api.resolveDoor ? api.resolveDoor(tab.door, reading) : { attention: false };
+        var attention = !!(view && view.attention);
+        if (tab.id === 'front' && api && api.frontTabState && api.doorById) {
+          var contactDoor = api.doorById(list, 'front-contact');
+          var state = api.frontTabState(list, {
+            front: reading,
+            contact: contactDoor && api.readingFor ? api.readingFor(contactDoor) : null
+          });
+          attention = !!state.attention;
+        }
         var selected = tab.id === chosen;
-        var btn = el('button', 'door-tab' + (selected ? ' is-selected' : '') + (view.attention ? ' is-attention' : ''));
+        var btn = el('button', 'door-tab' + (selected ? ' is-selected' : '') + (attention ? ' is-attention' : ''));
         btn.type = 'button';
         btn.setAttribute('role', 'tab');
         btn.setAttribute('aria-selected', selected ? 'true' : 'false');
         btn.setAttribute('data-door-tab', tab.id);
         btn.appendChild(document.createTextNode(tab.label));
-        if (view.attention) {
+        if (attention) {
           var mark = el('span', 'door-tab-mark');
           mark.setAttribute('aria-hidden', 'true');
           btn.appendChild(mark);

@@ -188,14 +188,16 @@ test('the default front door is the entryway Home Assistant lock', function () {
   assert.equal(list[0].kind, 'lock');
   assert.equal(list[0].source, 'homeassistant');
   assert.equal(list[0].entityId, 'lock.entryway_entryway_lock');
-  assert.equal(list[1].kind, 'garage');
-  assert.equal(list[1].entityId, '');
-  assert.equal(list[2].name, 'Kitchen Door');
-  assert.equal(list[2].kind, 'contact');
-  assert.equal(list[2].entityId, 'binary_sensor.kitchen_sliding_door');
-  assert.equal(list[3].name, 'Basement Door');
-  assert.equal(list[3].kind, 'contact');
-  assert.equal(list[3].entityId, 'binary_sensor.basement_door');
+  assert.equal(list[1].id, 'front-contact');
+  assert.equal(list[1].name, 'Front Door');
+  assert.equal(list[1].kind, 'contact');
+  assert.equal(list[1].entityId, 'binary_sensor.front_door');
+  assert.equal(list[2].kind, 'garage');
+  assert.equal(list[2].entityId, '');
+  assert.equal(list[3].name, 'Kitchen Door');
+  assert.equal(list[3].entityId, 'binary_sensor.kitchen_sliding_door');
+  assert.equal(list[4].name, 'Basement Door');
+  assert.equal(list[4].entityId, 'binary_sensor.basement_door');
   assert.equal(doors.entityIdOk('lock.entryway_entryway_lock'), true);
   assert.equal(doors.entityIdOk('binary_sensor.kitchen_sliding_door'), true);
   assert.equal(
@@ -244,6 +246,45 @@ test('a contact sensor maps on and off without guessing', function () {
   var word = view(door, { connected: true, known: true, value: 'open' });
   assert.equal(word.label, 'Unknown');
   assert.equal(word.attention, false);
+});
+
+test('the Front tab shows the lock and the contact together', function () {
+  var list = doors.doorList({});
+  var locked = { connected: true, known: true, value: 'locked' };
+  var unlocked = { connected: true, known: true, value: 'unlocked' };
+  var closed = { connected: true, known: true, value: 'off' };
+  var open = { connected: true, known: true, value: 'on' };
+  var missing = { connected: true, known: false };
+
+  var quiet = doors.frontTabState(list, { front: locked, contact: closed });
+  assert.equal(quiet.lock.label, 'Locked');
+  assert.equal(quiet.lock.attention, false);
+  assert.equal(quiet.contact.label, 'Closed');
+  assert.equal(quiet.contact.name, 'Front Door');
+  assert.equal(quiet.contact.attention, false);
+  assert.equal(quiet.attention, false);
+
+  var unlatched = doors.frontTabState(list, { front: unlocked, contact: closed });
+  assert.equal(unlatched.lock.label, 'Unlocked');
+  assert.equal(unlatched.lock.attention, true);
+  assert.equal(unlatched.contact.label, 'Closed');
+  assert.equal(unlatched.attention, true);
+
+  var ajar = doors.frontTabState(list, { front: locked, contact: open });
+  assert.equal(ajar.lock.label, 'Locked');
+  assert.equal(ajar.lock.attention, false);
+  assert.equal(ajar.contact.label, 'Open');
+  assert.equal(ajar.contact.attention, true);
+  assert.equal(doors.rowClass(ajar.contact), 'door-row is-attention');
+  assert.equal(ajar.attention, true);
+
+  var dark = doors.frontTabState(list, { front: locked, contact: missing });
+  assert.equal(dark.lock.label, 'Locked');
+  assert.equal(dark.lock.known, true);
+  assert.equal(dark.contact.label, 'Unknown');
+  assert.equal(dark.contact.attention, false);
+  assert.equal(dark.attention, false);
+  assert.equal(doors.rowClass(dark.contact), 'door-row is-neutral');
 });
 
 test('door tabs stay in Front, Kitchen, Basement, Garage 1 order', function () {

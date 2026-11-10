@@ -7,6 +7,7 @@
 
   var DEFAULT_DOORS = [
     { id: 'front', name: 'Front Door', kind: 'lock', source: 'homeassistant', entityId: 'lock.entryway_entryway_lock' },
+    { id: 'front-contact', name: 'Front Door', kind: 'contact', source: 'homeassistant', entityId: 'binary_sensor.front_door' },
     { id: 'garage', name: 'Garage door (main)', kind: 'garage', source: 'homeassistant', entityId: '' },
     { id: 'kitchen', name: 'Kitchen Door', kind: 'contact', source: 'homeassistant', entityId: 'binary_sensor.kitchen_sliding_door' },
     { id: 'basement', name: 'Basement Door', kind: 'contact', source: 'homeassistant', entityId: 'binary_sensor.basement_door' }
@@ -153,6 +154,30 @@
     return out;
   }
 
+  function doorById(list, id) {
+    var doors = list || [];
+    var i;
+    for (i = 0; i < doors.length; i++) {
+      if (doors[i] && doors[i].id === id) {
+        return doors[i];
+      }
+    }
+    return null;
+  }
+
+  function frontTabState(list, readings) {
+    var lockDoor = doorById(list, 'front');
+    var contactDoor = doorById(list, 'front-contact');
+    var map = readings || {};
+    var lock = lockDoor ? resolveDoor(lockDoor, map.front) : null;
+    var contact = contactDoor ? resolveDoor(contactDoor, map.contact) : null;
+    return {
+      lock: lock,
+      contact: contact,
+      attention: !!((lock && lock.attention) || (contact && contact.attention))
+    };
+  }
+
   function defaultDoorTab(tabs) {
     var list = tabs || [];
     var i;
@@ -246,6 +271,8 @@
   exports.doorList = doorList;
   exports.resolveDoor = resolveDoor;
   exports.doorTabs = doorTabs;
+  exports.doorById = doorById;
+  exports.frontTabState = frontTabState;
   exports.defaultDoorTab = defaultDoorTab;
   exports.rowClass = rowClass;
   exports.haReading = haReading;

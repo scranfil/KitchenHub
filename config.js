@@ -32,6 +32,7 @@ window.KH_CONFIG = {
   // Home Assistant's URL and token belong in homeassistant.json, not here.
   doors: [
     { id: "front", name: "Front Door", kind: "lock", source: "homeassistant", entityId: "lock.entryway_entryway_lock" },
+    { id: "front-contact", name: "Front Door", kind: "contact", source: "homeassistant", entityId: "binary_sensor.front_door" },
     { id: "garage", name: "Garage door (main)", kind: "garage", source: "homeassistant", entityId: "" },
     { id: "kitchen", name: "Kitchen Door", kind: "contact", source: "homeassistant", entityId: "binary_sensor.kitchen_sliding_door" },
     { id: "basement", name: "Basement Door", kind: "contact", source: "homeassistant", entityId: "binary_sensor.basement_door" }
