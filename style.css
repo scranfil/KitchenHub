@@ -1024,6 +1024,36 @@ a.tile-action {
   line-height: 1.2;
 }
 
+/* Four door rows share the tile with the front-door camera. */
+#nest-doorbell .panel-kicker {
+  margin-bottom: 0.2vh;
+}
+
+#nest-doorbell .door-row {
+  margin-bottom: 0.12vh;
+  padding-top: 0.12vh;
+  padding-bottom: 0.12vh;
+}
+
+#nest-doorbell .door-name,
+#nest-doorbell .door-state,
+#nest-doorbell .door-row.is-attention .door-name,
+#nest-doorbell .door-row.is-attention .door-state {
+  font-size: 2vh;
+}
+
+#nest-doorbell .door-shot,
+#nest-doorbell .door-svg {
+  height: 1.4vh;
+  margin-top: 0.1vh;
+}
+
+#nest-doorbell .door-camera .tile-action {
+  margin-top: 0.15vh;
+  padding-top: 0.15vh;
+  padding-bottom: 0.15vh;
+}
+
 .door-shot {
   display: block;
   width: 100%;

@@ -188,11 +188,60 @@ test('the default front door is the entryway Home Assistant lock', function () {
   assert.equal(list[0].entityId, 'lock.entryway_entryway_lock');
   assert.equal(list[1].kind, 'garage');
   assert.equal(list[1].entityId, '');
+  assert.equal(list[2].name, 'Kitchen Door');
+  assert.equal(list[2].kind, 'contact');
+  assert.equal(list[2].entityId, 'binary_sensor.kitchen_sliding_door');
+  assert.equal(list[3].name, 'Basement Door');
+  assert.equal(list[3].kind, 'contact');
+  assert.equal(list[3].entityId, 'binary_sensor.basement_door');
   assert.equal(doors.entityIdOk('lock.entryway_entryway_lock'), true);
+  assert.equal(doors.entityIdOk('binary_sensor.kitchen_sliding_door'), true);
   assert.equal(
     doors.haStateUrl('http://homeassistant.local:8123', 'lock.entryway_entryway_lock'),
     'http://homeassistant.local:8123/api/states/lock.entryway_entryway_lock'
   );
+});
+
+test('a contact sensor maps on and off without guessing', function () {
+  var door = {
+    name: 'Kitchen Door',
+    kind: 'contact',
+    source: 'homeassistant',
+    entityId: 'binary_sensor.kitchen_sliding_door'
+  };
+  var open = view(door, { connected: true, known: true, value: 'on' });
+  assert.equal(open.label, 'Open');
+  assert.equal(open.attention, true);
+  assert.equal(open.known, true);
+  assert.equal(doors.rowClass(open), 'door-row is-attention');
+
+  var closed = view(door, { connected: true, known: true, value: 'OFF' });
+  assert.equal(closed.label, 'Closed');
+  assert.equal(closed.attention, false);
+  assert.equal(closed.known, true);
+  assert.equal(doors.rowClass(closed), 'door-row');
+
+  var unavailable = view(door, { connected: true, known: false, value: 'unavailable' });
+  assert.equal(unavailable.label, 'Unknown');
+  assert.equal(unavailable.attention, false);
+  assert.equal(doors.rowClass(unavailable), 'door-row is-neutral');
+
+  var unknown = view({
+    name: 'Basement Door',
+    kind: 'contact',
+    source: 'homeassistant',
+    entityId: 'binary_sensor.basement_door'
+  }, { connected: true, known: false, value: 'unknown' });
+  assert.equal(unknown.label, 'Unknown');
+  assert.equal(unknown.attention, false);
+
+  var offline = view(door, { connected: false, known: true, value: 'on' });
+  assert.equal(offline.label, 'Not connected');
+  assert.equal(offline.attention, false);
+
+  var word = view(door, { connected: true, known: true, value: 'open' });
+  assert.equal(word.label, 'Unknown');
+  assert.equal(word.attention, false);
 });
 
 test('the door list keeps names and drops a bad entity id', function () {

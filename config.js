@@ -27,11 +27,14 @@ window.KH_CONFIG = {
     bridgeIp: "",
     appKey: ""
   },
-  // Each door is a name, a kind (lock or garage), and a source.
+  // Each door is a name, a kind (lock, garage, or contact), and a source.
+  // A contact row reads a binary_sensor: on is open, off is closed.
   // Home Assistant's URL and token belong in homeassistant.json, not here.
   doors: [
     { id: "front", name: "Front Door", kind: "lock", source: "homeassistant", entityId: "lock.entryway_entryway_lock" },
-    { id: "garage", name: "Garage door (main)", kind: "garage", source: "homeassistant", entityId: "" }
+    { id: "garage", name: "Garage door (main)", kind: "garage", source: "homeassistant", entityId: "" },
+    { id: "kitchen", name: "Kitchen Door", kind: "contact", source: "homeassistant", entityId: "binary_sensor.kitchen_sliding_door" },
+    { id: "basement", name: "Basement Door", kind: "contact", source: "homeassistant", entityId: "binary_sensor.basement_door" }
   ],
   // Thermostat status from Home Assistant. The URL and token stay in homeassistant.json.
   climate: {

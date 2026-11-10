@@ -1,13 +1,15 @@
 (function (exports) {
   'use strict';
 
-  // Each door is a name, a kind (lock or garage), and a source. The source
+  // Each door is a name, a kind (lock, garage, or contact), and a source. The source
   // only has to produce a small reading: connected, known, and a value.
   // Home Assistant's URL and token never belong in this file.
 
   var DEFAULT_DOORS = [
     { id: 'front', name: 'Front Door', kind: 'lock', source: 'homeassistant', entityId: 'lock.entryway_entryway_lock' },
-    { id: 'garage', name: 'Garage door (main)', kind: 'garage', source: 'homeassistant', entityId: '' }
+    { id: 'garage', name: 'Garage door (main)', kind: 'garage', source: 'homeassistant', entityId: '' },
+    { id: 'kitchen', name: 'Kitchen Door', kind: 'contact', source: 'homeassistant', entityId: 'binary_sensor.kitchen_sliding_door' },
+    { id: 'basement', name: 'Basement Door', kind: 'contact', source: 'homeassistant', entityId: 'binary_sensor.basement_door' }
   ];
 
   // Home Assistant lock states. Red is reserved for a door that is not
@@ -35,7 +37,7 @@
     var src = door || {};
     var kind = trim(src.kind).toLowerCase();
     var entityId = trim(src.entityId);
-    if (kind !== 'lock' && kind !== 'garage') {
+    if (kind !== 'lock' && kind !== 'garage' && kind !== 'contact') {
       kind = '';
     }
     if (!entityIdOk(entityId)) {
@@ -99,6 +101,11 @@
     } else if (item.kind === 'garage' && value === 'closed') {
       label = 'Closed';
     } else if (item.kind === 'garage' && value === 'open') {
+      label = 'Open';
+      attention = true;
+    } else if (item.kind === 'contact' && value === 'off') {
+      label = 'Closed';
+    } else if (item.kind === 'contact' && value === 'on') {
       label = 'Open';
       attention = true;
     }
