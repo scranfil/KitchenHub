@@ -5,6 +5,8 @@
   var util = KH.util;
   var TAP_DEBOUNCE_MS = 30000;
   var STALE_MS = 3 * 60 * 1000;
+  var RELOAD_GAP_MS = 10 * 60 * 1000;
+  var STALE_RELOAD_KEY = 'kh:stale-reload';
   var lastTap = 0;
   var bootAt = Date.now();
   var lastPaintMs = Date.now();
@@ -62,9 +64,9 @@
       if (KH.presence.shouldWakeReload(lastPaintMs, Date.now(), STALE_MS)) {
         return true;
       }
-      if (KH.doors && typeof KH.doors.lastPoll === 'function') {
+      if (KH.doors && typeof KH.doors.lastPoll === 'function' && typeof KH.doors.scheduledDelay === 'function' && typeof KH.presence.pollIsOverdue === 'function') {
         var polled = KH.doors.lastPoll();
-        if (polled && KH.presence.shouldWakeReload(polled, Date.now(), STALE_MS)) {
+        if (KH.presence.pollIsOverdue(polled, Date.now(), KH.doors.scheduledDelay(), STALE_MS)) {
           return true;
         }
       }
@@ -100,12 +102,54 @@
     }
   }
 
+  function lastStaleReload() {
+    try {
+      return Number(sessionStorage.getItem(STALE_RELOAD_KEY)) || 0;
+    } catch (err) {
+      return 0;
+    }
+  }
+
+  function reloadBecauseStale() {
+    var now = Date.now();
+    if (KH.presence && typeof KH.presence.reloadAllowed === 'function' && !KH.presence.reloadAllowed(lastStaleReload(), now, RELOAD_GAP_MS)) {
+      return;
+    }
+    try {
+      sessionStorage.setItem(STALE_RELOAD_KEY, String(now));
+    } catch (err) {
+      console.error('[wake]', err);
+    }
+    hardReload();
+  }
+
+  // The page's setTimeout queue is what froze. A worker timer is a different
+  // queue: its postMessage still arrives if the page can run tasks at all.
+  function startHeartbeat() {
+    function onTick() {
+      if (updatesAreStale()) {
+        reloadBecauseStale();
+      }
+    }
+    try {
+      var blob = new Blob([
+        'setInterval(function(){postMessage(1)},30000);'
+      ], { type: 'application/javascript' });
+      var worker = new Worker(URL.createObjectURL(blob));
+      worker.onmessage = onTick;
+    } catch (err) {
+      console.error('[wake]', err);
+      setInterval(onTick, 30000);
+    }
+  }
+
   // Chrome on this tablet can drop its timer queue. The clock, the feeds, and
   // the door poll are all setTimeout chains, so once the queue is gone nothing
-  // inside it can notice. A late timer, a tab focus, or a freeze resume can.
+  // inside it can notice. The worker heartbeat can. A tab focus or freeze
+  // resume can too.
   function wake(nudge) {
     if (updatesAreStale()) {
-      hardReload();
+      reloadBecauseStale();
       return;
     }
     if (!nudge || Date.now() - bootAt < 20000) {
@@ -117,17 +161,6 @@
     }
     lastNudgeMs = Date.now();
     refreshLiveData();
-    armWakeWatch();
-  }
-
-  function armWakeWatch() {
-    util.schedule('wake-watch', function tickWake() {
-      if (updatesAreStale()) {
-        hardReload();
-        return;
-      }
-      util.schedule('wake-watch', tickWake, 30000);
-    }, 30000);
   }
 
   function renderClock() {
@@ -352,7 +385,7 @@
     document.addEventListener('resume', function () {
       wake(true);
     });
-    armWakeWatch();
+    startHeartbeat();
 
     util.onReschedule(function () {
       renderClock();

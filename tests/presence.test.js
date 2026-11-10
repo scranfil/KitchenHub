@@ -110,6 +110,18 @@ test('a frozen clock or an overdue feed asks for a reload', function () {
   assert.equal(presence.dataIsStale(painted, painted + 16 * 60 * 1000, weatherEvery, stale), false);
   assert.equal(presence.dataIsStale(painted, painted + 18 * 60 * 1000, weatherEvery, stale), true);
   assert.equal(presence.dataIsStale(null, painted + 60 * 60 * 1000, weatherEvery, stale), false);
+
+  var grace = 3 * 60 * 1000;
+  assert.equal(presence.pollIsOverdue(painted, painted + 4 * 60 * 1000, 4 * 60 * 1000, grace), false);
+  assert.equal(presence.pollIsOverdue(painted, painted + 8 * 60 * 1000, 4 * 60 * 1000, grace), true);
+  assert.equal(presence.pollIsOverdue(painted, painted + 2 * 60 * 1000, 20000, grace), false);
+  assert.equal(presence.pollIsOverdue(painted, painted + 4 * 60 * 1000, 20000, grace), true);
+  assert.equal(presence.pollIsOverdue(0, painted + 10 * 60 * 1000, 20000, grace), false);
+
+  var gap = 10 * 60 * 1000;
+  assert.equal(presence.reloadAllowed(0, painted, gap), true);
+  assert.equal(presence.reloadAllowed(painted, painted + 5 * 60 * 1000, gap), false);
+  assert.equal(presence.reloadAllowed(painted, painted + 10 * 60 * 1000, gap), true);
 });
 
 test('a paused camera with a live track should play again', function () {

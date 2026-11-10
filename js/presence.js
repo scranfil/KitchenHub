@@ -340,8 +340,42 @@
     return now - saved >= interval + grace;
   }
 
+  // A door poll is overdue only after its own scheduled wait, plus grace.
+  // Backoff during an outage is that wait, so it is not a missed timer.
+  function pollIsOverdue(lastPollMs, nowMs, scheduledDelayMs, graceMs) {
+    var last = Number(lastPollMs);
+    var now = Number(nowMs);
+    var delay = Number(scheduledDelayMs);
+    var grace = Number(graceMs);
+    if (!isFinite(last) || last <= 0 || !isFinite(now) || now < last) {
+      return false;
+    }
+    if (!isFinite(delay) || delay < 0) {
+      delay = 0;
+    }
+    if (!isFinite(grace) || grace < 0) {
+      grace = 0;
+    }
+    return now - last >= delay + grace;
+  }
+
+  function reloadAllowed(lastReloadMs, nowMs, gapMs) {
+    var last = Number(lastReloadMs);
+    var now = Number(nowMs);
+    var gap = Number(gapMs);
+    if (!isFinite(now) || !isFinite(gap) || gap < 0) {
+      return false;
+    }
+    if (!isFinite(last) || last <= 0) {
+      return true;
+    }
+    return now - last >= gap;
+  }
+
   exports.shouldWakeReload = shouldWakeReload;
   exports.dataIsStale = dataIsStale;
+  exports.pollIsOverdue = pollIsOverdue;
+  exports.reloadAllowed = reloadAllowed;
   exports.DEFAULT_IDLE_SECONDS = DEFAULT_IDLE_SECONDS;
 
   function attachBrowserApi() {
