@@ -53,16 +53,21 @@ test('night brightness replaces the day levels', function () {
   assert.equal(presence.clampLevel(-3), 0);
 });
 
-test('Fully settings enable the camera and leave the screen on', function () {
+test('Fully keeps the screen on and reloads the page itself', function () {
   var settings = presence.fullySettings({ sensitivity: 92, frameRate: 5 });
   assert.equal(settings.boolean.motionDetection, true);
   assert.equal(settings.boolean.motionDetectionAcoustic, false);
   assert.equal(settings.boolean.screenOffInDarkness, false);
   assert.equal(settings.boolean.keepScreenOn, true);
+  assert.equal(settings.boolean.reloadOnScreenOn, true);
+  assert.equal(settings.boolean.loadCurrentPageOnReload, true);
+  assert.equal(settings.boolean.skipReloadIfStartUrlShowing, false);
+  assert.equal(settings.boolean.pauseWebviewOnPause, false);
   assert.equal(settings.string.motionSensitivity, '92');
   assert.equal(settings.string.motionFps, '5');
   assert.equal(settings.string.timeToScreensaverV2, '0');
   assert.equal(settings.string.timeToScreenOffV2, '0');
+  assert.equal(settings.string.reloadEachSeconds, '600');
 });
 
 test('camera motion ignores a still frame and catches a wave', function () {

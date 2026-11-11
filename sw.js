@@ -1,6 +1,6 @@
 'use strict';
 
-var CACHE = 'kh-shell-20';
+var CACHE = 'kh-shell-21';
 var SHELL = [
   './',
   './index.html',
@@ -20,6 +20,7 @@ var SHELL = [
   './js/lights.js',
   './js/hue.js',
   './js/presence.js',
+  './js/heartbeat.js',
   './js/app.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
