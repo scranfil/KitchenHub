@@ -35,6 +35,8 @@ Open `http://localhost:8080`.
 
 On the Lenovo tablet, Fully Kiosk PLUS (Advanced Web Settings → Enable JavaScript Interface) lets the page set the backlight from `config.presence`. In Chrome the page cannot move the backlight, so pin that backlight to the day `presence.bright` value, turn auto-brightness off, and the page darkens the panel with a veil. Either way the front camera is on, the page dims after `idleSeconds` with no motion, and a wave, a tap, or a weather alert brings it back up. From `config.night.start` to `config.night.end` it uses the lower `presence.night` levels. A fully off panel suspends the camera, so the screen stays on.
 
+The page asks Fully to reload the current page every 10 minutes, and again when the screen turns on. That timer belongs to Fully, so it still runs after the WebView has stopped scripting. Fully's "skip reload while the start URL is showing" is turned off, or that reload would never happen. The screen-off timer stays at 0.
+
 If the camera never reacts, set Fully → Motion Detection → **Camera API** to **Legacy**. Leave Fully’s screensaver timer and screen-off timer at 0. The page owns dimming, and a fully off panel on this tablet can suspend the camera.
 
 ### Tests

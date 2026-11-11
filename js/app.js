@@ -124,22 +124,32 @@
   }
 
   // The page's setTimeout queue is what froze. A worker timer is a different
-  // queue: its postMessage still arrives if the page can run tasks at all.
+  // queue, and its message still arrives when the page can run tasks. Fully's
+  // reloadEachSeconds is what restarts a WebView that has stopped entirely.
   function startHeartbeat() {
     function onTick() {
       if (updatesAreStale()) {
         reloadBecauseStale();
       }
     }
+    var pageTimer = null;
+    function armPageTimer() {
+      if (pageTimer != null) {
+        return;
+      }
+      pageTimer = setInterval(onTick, 30000);
+    }
     try {
-      var blob = new Blob([
-        'setInterval(function(){postMessage(1)},30000);'
-      ], { type: 'application/javascript' });
-      var worker = new Worker(URL.createObjectURL(blob));
+      var worker = new Worker('js/heartbeat.js');
+      KH.heartbeatWorker = worker;
       worker.onmessage = onTick;
+      worker.onerror = function (err) {
+        console.error('[wake]', err);
+        armPageTimer();
+      };
     } catch (err) {
       console.error('[wake]', err);
-      setInterval(onTick, 30000);
+      armPageTimer();
     }
   }
 

@@ -112,14 +112,21 @@
         motionDetectionAcoustic: false,
         screenOffInDarkness: false,
         showCamPreview: false,
-        keepScreenOn: true
+        keepScreenOn: true,
+        // Fully's own timer. The page cannot reload itself once the WebView
+        // has stopped running script, and this still fires then.
+        reloadOnScreenOn: true,
+        loadCurrentPageOnReload: true,
+        skipReloadIfStartUrlShowing: false,
+        pauseWebviewOnPause: false
       },
       string: {
         motionSensitivity: String(sensitivity),
         motionFps: String(frameRate),
         motionCameraId: '',
         timeToScreensaverV2: '0',
-        timeToScreenOffV2: '0'
+        timeToScreenOffV2: '0',
+        reloadEachSeconds: '600'
       }
     };
   }
@@ -669,6 +676,7 @@
       try {
         if (typeof f.bind === 'function') {
           f.bind('onMotion', 'if (window.KH && KH.presence && KH.presence.onMotion) { KH.presence.onMotion(); }');
+          f.bind('screenOn', 'window.location.reload();');
         }
       } catch (err) {
         console.error('[presence]', err);
