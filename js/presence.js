@@ -307,7 +307,21 @@
     return now >= loaded + delta * 60000;
   }
 
+  // The native kiosk owns the backlight and the camera. Fully is next.
+  // The browser path is the veil and getUserMedia, and it must not run
+  // alongside either of the others or the panel dims twice.
+  function presenceOwner(hasKiosk, hasFully) {
+    if (hasKiosk) {
+      return 'kiosk';
+    }
+    if (hasFully) {
+      return 'fully';
+    }
+    return 'browser';
+  }
+
   exports.fullySettings = fullySettings;
+  exports.presenceOwner = presenceOwner;
   exports.createController = createController;
   exports.motionHit = motionHit;
   exports.cameraAction = cameraAction;
@@ -634,6 +648,27 @@
       });
     }
 
+    function kioskBridge() {
+      var k = window.KitchenKiosk;
+      if (!k || typeof k.setLevels !== 'function') {
+        return null;
+      }
+      return k;
+    }
+
+    function pushKioskLevels() {
+      var k = kioskBridge();
+      if (!k) {
+        return;
+      }
+      var lv = currentLevels();
+      try {
+        k.setLevels(String(lv.bright), String(lv.dim));
+      } catch (err) {
+        console.error('[presence]', err);
+      }
+    }
+
     function hardware() {
       var f = window.fully;
       if (!f || typeof f.setScreenBrightness !== 'function') {
@@ -746,6 +781,31 @@
       if (disabled()) {
         document.body.classList.remove('presence-dim', 'presence-bright', 'presence-device');
         document.documentElement.style.setProperty('--presence-veil', '0');
+        return;
+      }
+
+      if (presenceOwner(!!kioskBridge(), !!hardware()) === 'kiosk') {
+        document.body.classList.remove('presence-dim', 'presence-bright', 'presence-device');
+        document.documentElement.style.setProperty('--presence-veil', '0');
+        pushKioskLevels();
+        document.addEventListener('pointerdown', function () {
+          var k = kioskBridge();
+          if (k && typeof k.reportActivity === 'function') {
+            try {
+              k.reportActivity();
+            } catch (err) {
+              console.error('[presence]', err);
+            }
+          }
+        }, true);
+        function tickKiosk() {
+          pushKioskLevels();
+          util.schedule('presence-levels', tickKiosk, 60000);
+        }
+        util.schedule('presence-levels', tickKiosk, 60000);
+        util.onReschedule(function () {
+          util.schedule('presence-levels', tickKiosk, 60000);
+        });
         return;
       }
 

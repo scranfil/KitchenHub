@@ -39,6 +39,42 @@ The page asks Fully to reload the current page every 10 minutes, and again when 
 
 If the camera never reacts, set Fully → Motion Detection → **Camera API** to **Legacy**. Leave Fully’s screensaver timer and screen-off timer at 0. The page owns dimming, and a fully off panel on this tablet can suspend the camera.
 
+### Android kiosk
+
+Chrome on the Lenovo Tab M10 (TB-X606F) freezes the page, and then the page cannot wake itself. Fully’s motion detection needs a paid license. The app in `android/` replaces both. It is a full-screen WebView, native front-camera motion, window brightness, and a reload watchdog. There are no paid libraries. It lives in this repo because it is the shell for this one dashboard.
+
+The WebView loads `http://192.168.86.51:8080`. Cleartext is allowed so a LAN address works. Press and hold the screen for about 3 seconds to change the address. The new address is saved on the tablet, so a different server does not need a new build.
+
+The app dims the backlight to the page’s dim level after 90 seconds without motion or a touch, and brightens it on motion or a touch. That runs even when the page is frozen. The page sees `window.KitchenKiosk` and does not add its own dim or open the camera, so the panel is not dimmed twice. In Chrome or Fully that object is absent and the old behavior stays.
+
+The app reloads the page when a JavaScript ping goes unanswered for 3 minutes, when the renderer crashes, and when the network returns after a drop. Reloads are at least 10 minutes apart. The screen stays on, the navigation bar is hidden, and the app is a Home app so it can open at boot.
+
+A signed release APK is attached to the pull request that added this app. The keystore is an artifact next to it, not a file in git. A later update has to be signed with that same key or Android will refuse to replace the installed app. If the keystore is lost, uninstall KitchenHub before installing a build signed with a different key. The keystore password is only in the artifact `kiosk-signing.txt`.
+
+Install with USB debugging on. This does not install anything by itself.
+
+```
+adb install -r kitchenhub-kiosk-1.0.1.apk
+adb shell pm grant com.kitchenhub.kiosk android.permission.CAMERA
+```
+
+When the tablet asks for the Home app, choose KitchenHub. That is what opens it after a reboot. The boot receiver also tries to start it. The camera grant is required for walk-by wake. A tap still brightens the screen without it.
+
+To build on a machine with the Android SDK:
+
+```
+cd android
+gradle wrapper
+./gradlew test
+KIOSK_KEYSTORE=/path/kitchenhub-kiosk.keystore \
+KIOSK_STORE_PASSWORD=... \
+KIOSK_KEY_PASSWORD=... \
+KIOSK_KEY_ALIAS=kitchenhub \
+./gradlew assembleRelease
+```
+
+The release APK is `android/app/build/outputs/apk/release/app-release.apk`. `applicationId` is `com.kitchenhub.kiosk`.
+
 ### Tests
 
 ```

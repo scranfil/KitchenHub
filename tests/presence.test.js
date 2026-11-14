@@ -53,6 +53,13 @@ test('night brightness replaces the day levels', function () {
   assert.equal(presence.clampLevel(-3), 0);
 });
 
+test('the native kiosk owns brightness ahead of Fully and the browser', function () {
+  assert.equal(presence.presenceOwner(true, true), 'kiosk');
+  assert.equal(presence.presenceOwner(true, false), 'kiosk');
+  assert.equal(presence.presenceOwner(false, true), 'fully');
+  assert.equal(presence.presenceOwner(false, false), 'browser');
+});
+
 test('Fully keeps the screen on and reloads the page itself', function () {
   var settings = presence.fullySettings({ sensitivity: 92, frameRate: 5 });
   assert.equal(settings.boolean.motionDetection, true);
