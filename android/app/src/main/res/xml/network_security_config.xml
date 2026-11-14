@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The kitchen server is plain HTTP on the LAN. The start address can be
+     changed on the device, so cleartext is allowed for any host the tablet is pointed at. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.86.51</domain>
+    </domain-config>
+</network-security-config>
