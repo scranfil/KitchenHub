@@ -54,7 +54,7 @@ A signed release APK is attached to the pull request that added this app. The ke
 Install with USB debugging on. This does not install anything by itself.
 
 ```
-adb install -r kitchenhub-kiosk-1.0.0.apk
+adb install -r kitchenhub-kiosk-1.0.1.apk
 adb shell pm grant com.kitchenhub.kiosk android.permission.CAMERA
 ```
 

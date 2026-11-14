@@ -32,11 +32,35 @@ class MotionDiffTest {
     }
 
     @Test
-    fun higherSensitivityCatchesASmallerPatch() {
+    fun onePixelIsNotAHandAndASmallPatchIs() {
         val base = IntArray(80) { 20 }
         val twitch = base.copyOf()
         twitch[3] = 40
-        assertFalse(MotionDiff.hit(base, twitch, 0))
-        assertTrue(MotionDiff.hit(base, twitch, 100))
+        assertFalse(MotionDiff.hit(base, twitch, 100))
+        val patch = base.copyOf()
+        patch[10] = 50
+        patch[11] = 55
+        patch[12] = 48
+        assertFalse(MotionDiff.hit(base, patch, 0))
+        assertTrue(MotionDiff.hit(base, patch, 100))
+    }
+
+    @Test
+    fun aLowLightHandOnAnExposureShiftWakesAndSpeckleDoesNot() {
+        val cols = 32
+        val prev = IntArray(cols * 24) { 20 }
+        val wave = IntArray(prev.size) { 28 }
+        for (c in 4 until 12) {
+            wave[10 * cols + c] = 36
+        }
+        val read = MotionDiff.read(prev, wave, 92, cols)
+        assertTrue(read!!.hit)
+        assertTrue(read.blob >= 8)
+        assertTrue(read.peak >= 7)
+
+        val speckle = IntArray(prev.size) { index -> if (index % 7 == 0) 30 else 21 }
+        val noise = MotionDiff.read(prev, speckle, 92, cols)
+        assertFalse(noise!!.hit)
+        assertTrue(noise.blob < 6)
     }
 }

@@ -46,6 +46,7 @@ import com.kitchenhub.kiosk.logic.StartUrl
 import com.kitchenhub.kiosk.logic.Watchdog
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 class MainActivity : AppCompatActivity() {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -61,12 +62,21 @@ class MainActivity : AppCompatActivity() {
     private var previousLuma: IntArray? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var generation = 0
+    private val frameCount = AtomicInteger(0)
+    private val dropCount = AtomicInteger(0)
+    private var lastFrameLogMs = 0L
+    @Volatile private var lastFrameWidth = 0
+    @Volatile private var lastFrameHeight = 0
+    private var loggedMode: BrightnessMachine.Mode? = null
+    private var loggedLevel = -1
+    private var lastScoreLogMs = 0L
 
     private val longPress = Runnable { showSettings() }
     private val tick = object : Runnable {
         override fun run() {
             val now = now()
             applyLevel(machine.tick(now))
+            logFrameRate(now)
             considerReload()
             ping()
             mainHandler.postDelayed(this, TICK_MS)
@@ -293,7 +303,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyLevel(level: Int) {
+        val mode = machine.mode
         val attrs = window.attributes
+        val before = attrs.screenBrightness
         val brightness = if (machine.level() == level) {
             machine.windowBrightness()
         } else {
@@ -304,6 +316,38 @@ class MainActivity : AppCompatActivity() {
             attrs.screenBrightness = brightness
             window.attributes = attrs
         }
+        if (mode != loggedMode || level != loggedLevel) {
+            val verb = when {
+                loggedMode == null -> "start"
+                mode == BrightnessMachine.Mode.DIM -> "dim"
+                loggedMode == BrightnessMachine.Mode.DIM -> "wake"
+                else -> "level"
+            }
+            Log.i(
+                PRESENCE,
+                "$verb $loggedMode->$mode level $loggedLevel->$level window $before->${window.attributes.screenBrightness}"
+            )
+            loggedMode = mode
+            loggedLevel = level
+        }
+    }
+
+    private fun logFrameRate(now: Long) {
+        if (lastFrameLogMs == 0L) {
+            lastFrameLogMs = now
+            return
+        }
+        if (now - lastFrameLogMs < FRAME_LOG_MS) {
+            return
+        }
+        val frames = frameCount.getAndSet(0)
+        val drops = dropCount.getAndSet(0)
+        val seconds = (now - lastFrameLogMs) / 1000.0
+        lastFrameLogMs = now
+        Log.i(
+            PRESENCE,
+            "frames=$frames dropped=$drops in ${"%.0f".format(seconds)}s size=${lastFrameWidth}x${lastFrameHeight} mode=${machine.mode}"
+        )
     }
 
     private fun onMotion() {
@@ -396,18 +440,36 @@ class MainActivity : AppCompatActivity() {
                 val buffer = plane.buffer
                 val bytes = ByteArray(buffer.remaining())
                 buffer.get(bytes)
+                lastFrameWidth = image.width
+                lastFrameHeight = image.height
+                frameCount.incrementAndGet()
                 val sample = LumaSampler.sample(
                     bytes,
                     image.width,
                     image.height,
                     plane.rowStride,
-                    32,
-                    24
+                    SAMPLE_COLS,
+                    SAMPLE_ROWS,
+                    plane.pixelStride
                 )
-                if (sample != null) {
+                if (sample == null) {
+                    dropCount.incrementAndGet()
+                } else {
                     val prev = previousLuma
                     previousLuma = sample
-                    if (prev != null && MotionDiff.hit(prev, sample, MOTION_SENSITIVITY)) {
+                    val read = if (prev == null) {
+                        null
+                    } else {
+                        MotionDiff.read(prev, sample, MOTION_SENSITIVITY, SAMPLE_COLS)
+                    }
+                    if (read != null && (read.hit || read.blob >= 3 || read.peak >= 6)) {
+                        val at = SystemClock.elapsedRealtime()
+                        if (read.hit || at - lastScoreLogMs >= 250L) {
+                            lastScoreLogMs = at
+                            Log.i(PRESENCE, "motion peak=${read.peak} blob=${read.blob} hit=${read.hit}")
+                        }
+                    }
+                    if (read != null && read.hit) {
                         mainHandler.post { onMotion() }
                     }
                 }
@@ -445,11 +507,15 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "KitchenKiosk"
+        private const val PRESENCE = "KioskPresence"
         private const val PREFS = "kiosk"
         private const val PREF_URL = "startUrl"
         private const val TICK_MS = 5_000L
         private const val LONG_PRESS_MS = 3_000L
         private const val FRONT_CAMERA_ID = "1"
         private const val MOTION_SENSITIVITY = 92
+        private const val SAMPLE_COLS = 32
+        private const val SAMPLE_ROWS = 24
+        private const val FRAME_LOG_MS = 10_000L
     }
 }
